@@ -26,9 +26,7 @@ def _base():
 # ----------------------------------------------------------- recommender / planner
 @require_GET
 def recommend_view(request):
-    text = request.GET.get("text", "").strip()
-    if not text and request.user.is_authenticated:
-        text = ""  # only prefill via the form hint, never silently use profile data
+    text = request.GET.get("text", "").strip()[:2000]  # profile interests are only offered as a hint, never used silently
     domain = request.GET.get("domain") or None
     vtype = request.GET.get("type") or None
     results = recommend(text, domain=domain, venue_type=vtype, limit=20) if text else []

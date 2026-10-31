@@ -1,6 +1,7 @@
 import time
 from datetime import timedelta
 
+from django import forms
 from django.conf import settings
 from django.core.cache import cache
 from django.db import models
@@ -26,17 +27,19 @@ def bump_catalog_version() -> None:
     cache.set(CATALOG_VERSION_KEY, time.time_ns(), None)
 
 
+class HttpsFormURLField(forms.URLField):
+    """Form field that assumes https:// for scheme-less input (Django 6's default, opted into early)."""
+
+    def __init__(self, *args, **kwargs):
+        kwargs.setdefault("assume_scheme", "https")
+        super().__init__(*args, **kwargs)
+
+
 class HttpsURLField(models.URLField):
-    """URLField whose form field assumes https:// for scheme-less input (Django 6 default)."""
+    """Model URLField whose admin/model forms use :class:`HttpsFormURLField`."""
 
     def formfield(self, **kwargs):
-        from django import forms
-
-        kwargs.setdefault(
-            "form_class",
-            type("_HttpsURL", (forms.URLField,), {"__init__": lambda self, *a, **kw: forms.URLField.__init__(self, *a, assume_scheme="https", **kw)}),
-        )
-        return super().formfield(**kwargs)
+        return super().formfield(**{"form_class": HttpsFormURLField, **kwargs})
 
 
 class ResearchSubfield(models.Model):
