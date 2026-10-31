@@ -112,6 +112,9 @@ class VenueList(models.Model):
     class Meta:
         ordering = ["name"]
 
+    def __str__(self):
+        return self.name
+
     def save(self, *args, **kwargs):
         if not self.slug:
             base = slugify(self.name) or "list"
@@ -120,6 +123,3 @@ class VenueList(models.Model):
                 slug = f"{base}-{secrets.token_hex(2)}"
             self.slug = slug
         super().save(*args, **kwargs)
-
-    def __str__(self):
-        return self.name

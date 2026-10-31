@@ -21,8 +21,7 @@ def merge_anonymous_bookmarks(sender, request, user, **kwargs):
     if not anon:
         return
     for bm in VenueBookmark.objects.filter(user__isnull=True, anon_key=anon):
-        mine, created = VenueBookmark.objects.get_or_create(
-            user=user, venue=bm.venue, defaults={"is_starred": bm.is_starred, "note": bm.note})
+        mine, created = VenueBookmark.objects.get_or_create(user=user, venue=bm.venue, defaults={"is_starred": bm.is_starred, "note": bm.note})
         if not created:
             mine.is_starred = mine.is_starred or bm.is_starred
             mine.note = mine.note or bm.note

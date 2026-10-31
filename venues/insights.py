@@ -1,4 +1,5 @@
 """Catalogue-wide aggregates behind the Insights page and /api/insights/ (cached per catalogue version)."""
+
 from collections import Counter
 from datetime import date, timedelta
 

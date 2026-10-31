@@ -9,6 +9,7 @@ Accepted formats are exactly what VenuePulse exports, so data can round-trip bet
 Rows are matched on ``slug`` (derived from the acronym when missing). Unknown columns are ignored;
 invalid rows are reported and skipped. ``--dry-run`` validates everything and rolls back.
 """
+
 import csv
 import io
 import json
@@ -24,9 +25,28 @@ from django.utils.text import slugify
 from venues.models import DeadlineCycle, ResearchSubfield, Venue
 
 TEXT_FIELDS = [
-    "name", "acronym", "venue_type", "description", "scope", "primary_domain", "core_rank", "ccf_rank", "quartile", "issn",
-    "city", "country", "continent", "country_flag_emoji", "attendance_mode", "page_limit", "formatting_style", "template_url",
-    "review_process", "publisher", "official_website", "submission_portal_url",
+    "name",
+    "acronym",
+    "venue_type",
+    "description",
+    "scope",
+    "primary_domain",
+    "core_rank",
+    "ccf_rank",
+    "quartile",
+    "issn",
+    "city",
+    "country",
+    "continent",
+    "country_flag_emoji",
+    "attendance_mode",
+    "page_limit",
+    "formatting_style",
+    "template_url",
+    "review_process",
+    "publisher",
+    "official_website",
+    "submission_portal_url",
 ]
 INT_FIELDS = ["h5_index", "h5_median", "apc_cost_usd"]
 DECIMAL_FIELDS = ["impact_factor", "citescore", "sjr", "acceptance_rate"]
@@ -98,8 +118,7 @@ class Command(BaseCommand):
                 transaction.set_rollback(True)
 
         prefix = "[dry-run] " if dry_run else ""
-        summary = (f"{prefix}{stats['created']} created, {stats['updated']} updated, "
-                   f"{stats['cycles']} cycle(s) upserted, {stats['errors']} error(s).")
+        summary = f"{prefix}{stats['created']} created, {stats['updated']} updated, " f"{stats['cycles']} cycle(s) upserted, {stats['errors']} error(s)."
         self.stdout.write(self.style.WARNING(summary) if stats["errors"] else self.style.SUCCESS(summary))
         if stats["errors"] and not dry_run:
             raise CommandError("Some rows could not be imported (see errors above).")
@@ -143,7 +162,7 @@ class Command(BaseCommand):
 
         tags = row.get("subfields")
         if tags is not None:
-            names = tags if isinstance(tags, list) else [t for t in str(tags).split(";")]
+            names = tags if isinstance(tags, list) else list(str(tags).split(";"))
             names = [n.strip() for n in names if n and n.strip()]
             venue.subfields.set([ResearchSubfield.objects.get_or_create(slug=slugify(n), defaults={"name": n})[0] for n in names])
 

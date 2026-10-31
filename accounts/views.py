@@ -4,7 +4,7 @@ from datetime import timedelta
 from zoneinfo import available_timezones
 
 from django.contrib import messages
-from django.contrib.auth import login, logout, update_session_auth_hash
+from django.contrib.auth import login, logout
 from django.contrib.auth import views as auth_views
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
@@ -120,19 +120,23 @@ def dashboard(request):
         ("Track a submission", request.user.submissions.exists(), reverse("tracker:create")),
         ("Subscribe to your calendar feed", profile.calendar_subscribed, reverse("accounts:profile") + "#calendar"),
     ]
-    return render(request, "accounts/dashboard.html", {
-        "cycles": cycles,
-        "submissions": subs,
-        "status_counts": status_counts,
-        "notifications": request.user.notifications.filter(read_at__isnull=True)[:5],
-        "lists": request.user.venue_lists.annotate(n=Count("venues")),
-        "saved_searches": request.user.saved_searches.all(),
-        "recs": recs,
-        "target_count": target_count,
-        "onboarding": checklist,
-        "onboarding_done": all(done for _, done, _ in checklist),
-        "calendar_url": request.build_absolute_uri(reverse("accounts:calendar_feed", args=[profile.calendar_token])),
-    })
+    return render(
+        request,
+        "accounts/dashboard.html",
+        {
+            "cycles": cycles,
+            "submissions": subs,
+            "status_counts": status_counts,
+            "notifications": request.user.notifications.filter(read_at__isnull=True)[:5],
+            "lists": request.user.venue_lists.annotate(n=Count("venues")),
+            "saved_searches": request.user.saved_searches.all(),
+            "recs": recs,
+            "target_count": target_count,
+            "onboarding": checklist,
+            "onboarding_done": all(done for _, done, _ in checklist),
+            "calendar_url": request.build_absolute_uri(reverse("accounts:calendar_feed", args=[profile.calendar_token])),
+        },
+    )
 
 
 @login_required
@@ -143,11 +147,15 @@ def profile(request):
         messages.success(request, "Profile saved.")
         return redirect("accounts:profile")
     p = request.user.profile
-    return render(request, "accounts/profile.html", {
-        "form": form,
-        "profile": p,
-        "calendar_url": request.build_absolute_uri(reverse("accounts:calendar_feed", args=[p.calendar_token])),
-    })
+    return render(
+        request,
+        "accounts/profile.html",
+        {
+            "form": form,
+            "profile": p,
+            "calendar_url": request.build_absolute_uri(reverse("accounts:calendar_feed", args=[p.calendar_token])),
+        },
+    )
 
 
 @login_required
@@ -214,26 +222,41 @@ def export_data(request):
         "exported_at": timezone.now().isoformat(),
         "account": {"username": u.get_username(), "email": u.email, "date_joined": iso(u.date_joined), "last_login": iso(u.last_login)},
         "profile": {
-            "display_name": p.display_name, "affiliation": p.affiliation, "research_interests": p.research_interests,
-            "timezone": p.timezone, "email_reminders": p.email_reminders, "reminder_days": p.reminder_days,
+            "display_name": p.display_name,
+            "affiliation": p.affiliation,
+            "research_interests": p.research_interests,
+            "timezone": p.timezone,
+            "email_reminders": p.email_reminders,
+            "reminder_days": p.reminder_days,
         },
         "bookmarks": [
             {"venue": b.venue.slug, "starred": b.is_starred, "note": b.note, "updated_at": iso(b.updated_at)}
             for b in VenueBookmark.objects.filter(user=u).select_related("venue")
         ],
         "venue_lists": [
-            {"name": lst.name, "slug": lst.slug, "public": lst.is_public, "description": lst.description,
-             "venues": list(lst.venues.values_list("slug", flat=True))}
+            {
+                "name": lst.name,
+                "slug": lst.slug,
+                "public": lst.is_public,
+                "description": lst.description,
+                "venues": list(lst.venues.values_list("slug", flat=True)),
+            }
             for lst in u.venue_lists.prefetch_related("venues")
         ],
         "saved_searches": [{"name": s.name, "query": s.querystring, "alert": s.alert} for s in u.saved_searches.all()],
         "papers": [
             {
-                "title": paper.title, "abstract": paper.abstract, "keywords": paper.keywords,
+                "title": paper.title,
+                "abstract": paper.abstract,
+                "keywords": paper.keywords,
                 "submissions": [
                     {
-                        "venue": s.venue.slug, "cycle": s.cycle.year if s.cycle else None, "status": s.status,
-                        "submitted_on": iso(s.submitted_on), "decision_on": iso(s.decision_on), "notes": s.notes,
+                        "venue": s.venue.slug,
+                        "cycle": s.cycle.year if s.cycle else None,
+                        "status": s.status,
+                        "submitted_on": iso(s.submitted_on),
+                        "decision_on": iso(s.decision_on),
+                        "notes": s.notes,
                         "checklist": [{"text": i.text, "done": i.done} for i in s.checklist_items.all()],
                     }
                     for s in paper.submissions.select_related("venue", "cycle").prefetch_related("checklist_items")
@@ -242,8 +265,15 @@ def export_data(request):
             for paper in u.papers.all()
         ],
         "reviews": [
-            {"venue": r.venue.slug, "rating": r.rating, "review_quality": r.review_quality, "turnaround_days": r.turnaround_days,
-             "outcome": r.outcome, "comment": r.comment, "created_at": iso(r.created_at)}
+            {
+                "venue": r.venue.slug,
+                "rating": r.rating,
+                "review_quality": r.review_quality,
+                "turnaround_days": r.turnaround_days,
+                "outcome": r.outcome,
+                "comment": r.comment,
+                "created_at": iso(r.created_at),
+            }
             for r in u.venue_reviews.select_related("venue")
         ],
         "suggestions": [
@@ -251,8 +281,7 @@ def export_data(request):
             for s in u.suggestions.select_related("cycle__venue")
         ],
         "notifications": [
-            {"message": n.message, "kind": n.kind, "created_at": iso(n.created_at), "read_at": iso(n.read_at)}
-            for n in u.notifications.all()[:1000]
+            {"message": n.message, "kind": n.kind, "created_at": iso(n.created_at), "read_at": iso(n.read_at)} for n in u.notifications.all()[:1000]
         ],
     }
     response = HttpResponse(json.dumps(data, indent=2, ensure_ascii=False), content_type="application/json; charset=utf-8")
@@ -303,10 +332,14 @@ def saved_search_delete(request, pk):
 # ------------------------------------------------------------------ venue lists
 @login_required
 def lists_index(request):
-    return render(request, "accounts/lists.html", {
-        "lists": request.user.venue_lists.annotate(n=Count("venues")),
-        "form": VenueListForm(),
-    })
+    return render(
+        request,
+        "accounts/lists.html",
+        {
+            "lists": request.user.venue_lists.annotate(n=Count("venues")),
+            "form": VenueListForm(),
+        },
+    )
 
 
 @login_required
@@ -330,13 +363,17 @@ def list_detail(request, slug):
         raise Http404
     venues = lst.venues.prefetch_related("cycles", "subfields")
     venues = sorted(venues, key=lambda v: (v.next_deadline is None, v.next_deadline[1] if v.next_deadline else 0))
-    return render(request, "accounts/list_detail.html", {
-        "lst": lst,
-        "venues": venues,
-        "owner": owner,
-        "starred_ids": starred_ids(request),
-        "share_url": request.build_absolute_uri(request.path),
-    })
+    return render(
+        request,
+        "accounts/list_detail.html",
+        {
+            "lst": lst,
+            "venues": venues,
+            "owner": owner,
+            "starred_ids": starred_ids(request),
+            "share_url": request.build_absolute_uri(request.path),
+        },
+    )
 
 
 @login_required

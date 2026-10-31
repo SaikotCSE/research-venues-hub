@@ -2,6 +2,7 @@
 
 Sends a Host header from DJANGO_ALLOWED_HOSTS so the request passes host validation.
 """
+
 import os
 import sys
 import urllib.error

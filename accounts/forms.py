@@ -129,5 +129,5 @@ class DeleteAccountForm(StyledFormMixin, forms.Form):
 
     def clean_confirm(self):
         if self.cleaned_data["confirm"].strip() != "DELETE":
-            raise forms.ValidationError('Please type DELETE in capital letters.')
+            raise forms.ValidationError("Please type DELETE in capital letters.")
         return self.cleaned_data["confirm"]

@@ -7,12 +7,18 @@ from django.views.decorators.http import require_POST
 from venues.models import DeadlineCycle, Venue
 
 from .forms import ReviewForm, SuggestionForm
-from .models import DeadlineChange, DeadlineSuggestion, VenueReview
+from .models import DeadlineChange, VenueReview
 
 
 def review_summary(venue):
-    agg = venue.reviews.aggregate(n=Count("id"), rating=Avg("rating"), quality=Avg("review_quality"), turnaround=Avg("turnaround_days"),
-                                  accepted=Count("id", filter=Q(outcome="accepted")), decided=Count("id", filter=~Q(outcome="pending")))
+    agg = venue.reviews.aggregate(
+        n=Count("id"),
+        rating=Avg("rating"),
+        quality=Avg("review_quality"),
+        turnaround=Avg("turnaround_days"),
+        accepted=Count("id", filter=Q(outcome="accepted")),
+        decided=Count("id", filter=~Q(outcome="pending")),
+    )
     agg["accept_pct"] = round(100 * agg["accepted"] / agg["decided"]) if agg["decided"] else None
     return agg
 
@@ -43,9 +49,16 @@ def suggest(request, cycle_id):
         s.save()
         messages.success(request, "Suggestion submitted for moderation. Thank you!")
         return redirect(cycle.venue.get_absolute_url())
-    return render(request, "accounts/form_page.html", {
-        "form": form, "title": f"Suggest a correction · {cycle}", "submit": "Submit suggestion",
-        "intro": "Times are interpreted as UTC. Include a link to the official call so moderators can verify."})
+    return render(
+        request,
+        "accounts/form_page.html",
+        {
+            "form": form,
+            "title": f"Suggest a correction · {cycle}",
+            "submit": "Submit suggestion",
+            "intro": "Times are interpreted as UTC. Include a link to the official call so moderators can verify.",
+        },
+    )
 
 
 def changes(request):

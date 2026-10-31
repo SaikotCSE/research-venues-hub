@@ -42,6 +42,9 @@ class DeadlineChange(models.Model):
     class Meta:
         ordering = ["-changed_at"]
 
+    def __str__(self):
+        return f"{self.cycle} {self.field}: {self.old_value} → {self.new_value}"
+
     FIELD_LABELS = {
         "abstract_deadline": "Abstract deadline",
         "submission_deadline": "Paper deadline",
@@ -58,9 +61,6 @@ class DeadlineChange(models.Model):
         if self.old_value and self.new_value:
             return (self.new_value - self.old_value).days
         return None
-
-    def __str__(self):
-        return f"{self.cycle} {self.field}: {self.old_value} → {self.new_value}"
 
 
 class DeadlineSuggestion(models.Model):
@@ -90,12 +90,12 @@ class DeadlineSuggestion(models.Model):
     class Meta:
         ordering = ["-created_at"]
 
+    def __str__(self):
+        return f"{self.cycle} {self.field} → {self.new_value:%Y-%m-%d}"
+
     def approve(self):
         setattr(self.cycle, self.field, self.new_value)
         self.cycle.mark_verified(source_url=self.source_url, save=False)
         self.cycle.save()
         self.status = self.Status.APPROVED
         self.save(update_fields=["status"])
-
-    def __str__(self):
-        return f"{self.cycle} {self.field} → {self.new_value:%Y-%m-%d}"

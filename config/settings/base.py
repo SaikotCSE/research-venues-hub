@@ -1,4 +1,5 @@
 """Settings shared by every environment. Environment-specific modules import * from here."""
+
 from pathlib import Path
 
 import dj_database_url

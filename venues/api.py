@@ -6,6 +6,7 @@ Conventions
 * Public GET endpoints send ``ETag``/``Cache-Control`` (304 on ``If-None-Match``) and CORS ``*``.
 * Rate limits are reported in ``X-RateLimit-*`` headers (see settings.RATELIMITS).
 """
+
 import functools
 import hashlib
 import json
@@ -133,12 +134,14 @@ def tags(request):
 @api_view()
 def stats(request):
     now = timezone.now()
-    return JsonResponse({
-        "venues": Venue.objects.count(),
-        "by_type": dict(Venue.objects.values_list("venue_type").annotate(n=Count("id"))),
-        "with_upcoming_deadline": Venue.objects.filter(cycles__submission_deadline__gte=now).distinct().count(),
-        "server_time": now.isoformat(),
-    })
+    return JsonResponse(
+        {
+            "venues": Venue.objects.count(),
+            "by_type": dict(Venue.objects.values_list("venue_type").annotate(n=Count("id"))),
+            "with_upcoming_deadline": Venue.objects.filter(cycles__submission_deadline__gte=now).distinct().count(),
+            "server_time": now.isoformat(),
+        }
+    )
 
 
 @ratelimit("api_public", methods=("GET",))
@@ -153,14 +156,19 @@ def suggest(request):
     q = request.GET.get("q", "").strip()[:80]
     if not q:
         return JsonResponse({"results": []})
-    matches = list(Venue.objects.filter(Q(acronym__icontains=q) | Q(name__icontains=q)).only("acronym", "name", "slug", "venue_type", "country_flag_emoji")[:50])
+    matches = list(
+        Venue.objects.filter(Q(acronym__icontains=q) | Q(name__icontains=q)).only("acronym", "name", "slug", "venue_type", "country_flag_emoji")[:50]
+    )
     ql = q.lower()
     # exact acronym > acronym prefix > acronym substring > name match
     matches.sort(key=lambda v: (v.acronym.lower() != ql, not v.acronym.lower().startswith(ql), ql not in v.acronym.lower(), v.acronym.lower()))
-    return JsonResponse({"results": [
-        {"acronym": v.acronym, "name": v.name, "type": v.venue_type, "url": v.get_absolute_url(), "flag": v.country_flag_emoji}
-        for v in matches[:8]
-    ]})
+    return JsonResponse(
+        {
+            "results": [
+                {"acronym": v.acronym, "name": v.name, "type": v.venue_type, "url": v.get_absolute_url(), "flag": v.country_flag_emoji} for v in matches[:8]
+            ]
+        }
+    )
 
 
 # ------------------------------------------------------------------ token-authenticated endpoints
@@ -212,7 +220,7 @@ def me_targets(request):
         try:
             slug = json.loads(request.body or b"{}").get("slug", "")
         except (ValueError, AttributeError):
-            return error("Invalid JSON body; expected {\"slug\": \"...\"}.", 400)
+            return error('Invalid JSON body; expected {"slug": "..."}.', 400)
         venue = _base().filter(slug=slug).first()
         if venue is None:
             raise Http404(f"No venue with slug '{slug}'.")
@@ -239,9 +247,21 @@ def me_target_delete(request, slug):
 @api_view(methods=("GET",), public=False)
 def me_submissions(request):
     subs = request.api_user.submissions.select_related("paper", "venue", "cycle")
-    return JsonResponse({"count": subs.count(), "results": [
-        {"id": s.id, "paper": s.paper.title, "venue": s.venue.acronym, "venue_slug": s.venue.slug, "status": s.status,
-         "submitted_on": s.submitted_on.isoformat() if s.submitted_on else None,
-         "decision_on": s.decision_on.isoformat() if s.decision_on else None,
-         "deadline": s.target_deadline.isoformat() if s.target_deadline else None}
-        for s in subs]})
+    return JsonResponse(
+        {
+            "count": subs.count(),
+            "results": [
+                {
+                    "id": s.id,
+                    "paper": s.paper.title,
+                    "venue": s.venue.acronym,
+                    "venue_slug": s.venue.slug,
+                    "status": s.status,
+                    "submitted_on": s.submitted_on.isoformat() if s.submitted_on else None,
+                    "decision_on": s.decision_on.isoformat() if s.decision_on else None,
+                    "deadline": s.target_deadline.isoformat() if s.target_deadline else None,
+                }
+                for s in subs
+            ],
+        }
+    )

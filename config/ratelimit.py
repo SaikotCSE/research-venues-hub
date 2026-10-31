@@ -6,6 +6,7 @@
 Limits are configured in settings.RATELIMITS as "<count>/<s|m|h|d>". When a client exceeds the
 limit the view is not called and a 429 response is returned (JSON for API/HTMX callers).
 """
+
 import functools
 import hashlib
 import time

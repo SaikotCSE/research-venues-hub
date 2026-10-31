@@ -6,6 +6,7 @@
 
 Requires the catalogue (``seed_venues``) to be loaded. Idempotent.
 """
+
 import secrets
 
 from django.contrib.auth import get_user_model
@@ -43,8 +44,14 @@ class Command(BaseCommand):
         User = get_user_model()
         user, created = User.objects.get_or_create(username=username, defaults={"email": f"{username}@example.com"})
         if reset and not created:
-            for qs in (user.papers.all(), user.venue_lists.all(), user.saved_searches.all(), user.venue_reviews.all(), user.notifications.all(),
-                       VenueBookmark.objects.filter(user=user)):
+            for qs in (
+                user.papers.all(),
+                user.venue_lists.all(),
+                user.saved_searches.all(),
+                user.venue_reviews.all(),
+                user.notifications.all(),
+                VenueBookmark.objects.filter(user=user),
+            ):
                 qs.delete()
         password = password or secrets.token_urlsafe(10)
         user.set_password(password)
@@ -79,17 +86,32 @@ class Command(BaseCommand):
                         item.done = True
                         item.save(update_fields=["done"])
 
-        lst, _ = VenueList.objects.get_or_create(user=user, name="Medical imaging 2027", defaults={"description": "Where the cardiac MRI paper could go", "is_public": True})
+        lst, _ = VenueList.objects.get_or_create(
+            user=user, name="Medical imaging 2027", defaults={"description": "Where the cardiac MRI paper could go", "is_public": True}
+        )
         lst.venues.set([venues[s] for s in ("miccai", "ieee-tmi", "media", "isbi") if s in venues])
         SavedSearch.objects.get_or_create(user=user, name="Open A* calls", defaults={"querystring": "status=open&core=A*", "alert": True})
         if "neurips" in venues:
-            VenueReview.objects.update_or_create(user=user, venue=venues["neurips"], defaults={
-                "rating": 4, "review_quality": 3, "turnaround_days": 120, "outcome": "accepted",
-                "comment": "Thorough reviews; the discussion period genuinely changed one reviewer's mind."})
-        Notification.objects.get_or_create(user=user, key="demo:welcome", defaults={
-            "kind": "system", "message": "Welcome! This demo account shows targets, a tracker board, lists and reminders.", "url": "/accounts/"})
+            VenueReview.objects.update_or_create(
+                user=user,
+                venue=venues["neurips"],
+                defaults={
+                    "rating": 4,
+                    "review_quality": 3,
+                    "turnaround_days": 120,
+                    "outcome": "accepted",
+                    "comment": "Thorough reviews; the discussion period genuinely changed one reviewer's mind.",
+                },
+            )
+        Notification.objects.get_or_create(
+            user=user,
+            key="demo:welcome",
+            defaults={"kind": "system", "message": "Welcome! This demo account shows targets, a tracker board, lists and reminders.", "url": "/accounts/"},
+        )
 
         self.stdout.write(self.style.SUCCESS(f"Demo account ready: username={username!r} password={password!r}"))
-        self.stdout.write(f"Starred {VenueBookmark.objects.filter(user=user, is_starred=True).count()} venues, "
-                          f"{user.submissions.count()} submissions, list '{lst.name}' ({lst.venues.count()} venues). "
-                          f"Dates as of {timezone.now():%Y-%m-%d}.")
+        self.stdout.write(
+            f"Starred {VenueBookmark.objects.filter(user=user, is_starred=True).count()} venues, "
+            f"{user.submissions.count()} submissions, list '{lst.name}' ({lst.venues.count()} venues). "
+            f"Dates as of {timezone.now():%Y-%m-%d}."
+        )

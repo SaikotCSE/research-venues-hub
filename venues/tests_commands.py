@@ -25,9 +25,8 @@ def run(*args, **kwargs):
 
 class ImportVenuesTests(TestCase):
     def write(self, text, suffix):
-        fh = tempfile.NamedTemporaryFile("w", suffix=suffix, delete=False, encoding="utf-8")
-        fh.write(text)
-        fh.close()
+        with tempfile.NamedTemporaryFile("w", suffix=suffix, delete=False, encoding="utf-8") as fh:
+            fh.write(text)
         self.addCleanup(Path(fh.name).unlink)
         return fh.name
 
@@ -57,8 +56,15 @@ class ImportVenuesTests(TestCase):
         self.assertEqual(Venue.objects.get(slug="newconf").core_rank, "A")
 
     def test_dry_run_rolls_back(self):
-        data = [{"acronym": "DRY", "name": "Dry Run Conf", "venue_type": "Conference", "primary_domain": "X",
-                 "cycles": [{"year": 2031, "submission_deadline": "2031-03-01T11:59:00+00:00"}]}]
+        data = [
+            {
+                "acronym": "DRY",
+                "name": "Dry Run Conf",
+                "venue_type": "Conference",
+                "primary_domain": "X",
+                "cycles": [{"year": 2031, "submission_deadline": "2031-03-01T11:59:00+00:00"}],
+            }
+        ]
         out = run("import_venues", self.write(json.dumps(data), ".json"), "--dry-run")
         self.assertIn("[dry-run] 1 created", out)
         self.assertFalse(Venue.objects.filter(slug="dry").exists())
@@ -140,8 +146,16 @@ class AdminTests(TestCase):
         self.client.force_login(self.admin)
 
     def test_changelists_render(self):
-        for name in ("venues_venue", "venues_deadlinecycle", "venues_researchsubfield", "venues_venuebookmark",
-                     "accounts_userprofile", "tracker_submission", "community_venuereview", "community_deadlinesuggestion"):
+        for name in (
+            "venues_venue",
+            "venues_deadlinecycle",
+            "venues_researchsubfield",
+            "venues_venuebookmark",
+            "accounts_userprofile",
+            "tracker_submission",
+            "community_venuereview",
+            "community_deadlinesuggestion",
+        ):
             r = self.client.get(reverse(f"admin:{name}_changelist"))
             self.assertEqual(r.status_code, 200, name)
         r = self.client.get(reverse("admin:venues_venue_changelist"), {"deadline": "30d"})

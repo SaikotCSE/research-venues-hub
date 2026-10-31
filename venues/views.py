@@ -104,9 +104,7 @@ def venue_list(request):
         return render(request, "venues/partials/results.html", ctx)
     ctx.update(facet_options())
     ctx["stats"] = _home_stats(now)
-    ctx["closing_soon"] = (
-        DeadlineCycle.objects.filter(submission_deadline__gte=now).select_related("venue").order_by("submission_deadline")[:6]
-    )
+    ctx["closing_soon"] = DeadlineCycle.objects.filter(submission_deadline__gte=now).select_related("venue").order_by("submission_deadline")[:6]
     return render(request, "venues/venue_list.html", ctx)
 
 
@@ -138,9 +136,13 @@ def related_venues(venue, limit=6):
     tag_ids = list(venue.subfields.values_list("pk", flat=True))
     if not tag_ids:
         return []
-    qs = (Venue.objects.filter(subfields__in=tag_ids).exclude(pk=venue.pk)
-          .annotate(shared=Count("subfields", distinct=True)).prefetch_related("cycles")
-          .order_by("-shared", "acronym")[:limit])
+    qs = (
+        Venue.objects.filter(subfields__in=tag_ids)
+        .exclude(pk=venue.pk)
+        .annotate(shared=Count("subfields", distinct=True))
+        .prefetch_related("cycles")
+        .order_by("-shared", "acronym")[:limit]
+    )
     return list(qs)
 
 
@@ -203,10 +205,17 @@ def compare(request):
     for v in venues:
         rest = [s for s in slugs if s != v.slug]
         remove_links[v.slug] = "?" + "&".join(f"s={s}" for s in rest)
-    return render(request, template, {
-        "venues": venues, "rows": compare_rows(venues), "max_compare": MAX_COMPARE,
-        "remove_links": remove_links, "is_drawer": _is_htmx(request),
-    })
+    return render(
+        request,
+        template,
+        {
+            "venues": venues,
+            "rows": compare_rows(venues),
+            "max_compare": MAX_COMPARE,
+            "remove_links": remove_links,
+            "is_drawer": _is_htmx(request),
+        },
+    )
 
 
 RANK_SCORE = {"A*": 5, "A": 4, "B": 3, "C": 2, "Q1": 5, "Q2": 4, "Q3": 3, "Q4": 2}
@@ -225,6 +234,7 @@ def _best(values, pick):
 
 def compare_rows(venues):
     """Rows for the comparison table; numeric rows flag the best value(s)."""
+
     def rank_score(v):
         return max(RANK_SCORE.get(v.core_rank, 0), {"A": 5, "B": 3, "C": 2}.get(v.ccf_rank, 0), RANK_SCORE.get(v.quartile, 0)) or None
 
@@ -249,8 +259,13 @@ def compare_rows(venues):
     rows = []
     for label, values, scores, pick in spec:
         best = _best(scores, pick) if scores else set()
-        rows.append({"label": label, "key": label.lower().replace(" ", "_").replace("-", "_"),
-                     "cells": [{"value": val, "best": i in best} for i, val in enumerate(values)]})
+        rows.append(
+            {
+                "label": label,
+                "key": label.lower().replace(" ", "_").replace("-", "_"),
+                "cells": [{"value": val, "best": i in best} for i, val in enumerate(values)],
+            }
+        )
     return rows
 
 

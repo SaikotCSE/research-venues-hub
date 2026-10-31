@@ -9,7 +9,9 @@ from public sources; deadlines for future editions are *projections* extrapolate
 typical calendar of previous editions (flagged ``is_projected``). Always verify on the
 official venue website before submitting.
 """
-from datetime import date, datetime, time, timedelta, timezone as dt_tz
+
+from datetime import UTC, date, datetime, time, timedelta
+from datetime import timezone as dt_tz
 from decimal import Decimal
 
 from django.core.management.base import BaseCommand
@@ -41,8 +43,9 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument("--years-back", type=int, default=1)
-        parser.add_argument("--years-forward", type=int, default=2,
-                            help="Look this many years ahead, stopping at the first edition whose deadline is still upcoming.")
+        parser.add_argument(
+            "--years-forward", type=int, default=2, help="Look this many years ahead, stopping at the first edition whose deadline is still upcoming."
+        )
         parser.add_argument("--reset", action="store_true", help="Delete existing venues first.")
 
     @transaction.atomic
@@ -64,9 +67,12 @@ class Command(BaseCommand):
                     if cycle.submission_deadline >= now:
                         break  # one projected upcoming edition is enough
         if opts["verbosity"] > 0:
-            self.stdout.write(self.style.SUCCESS(
-            f"Seeded {created + updated} venues ({created} created, {updated} updated) and {cycles} deadline cycles; "
-            f"{Venue.objects.count()} venues in database."))
+            self.stdout.write(
+                self.style.SUCCESS(
+                    f"Seeded {created + updated} venues ({created} created, {updated} updated) and {cycles} deadline cycles; "
+                    f"{Venue.objects.count()} venues in database."
+                )
+            )
 
     def _upsert_venue(self, r):
         scope = f"Topics: {', '.join(r['tags'])}."
@@ -74,24 +80,46 @@ class Command(BaseCommand):
             scope += " Manuscripts are accepted on a rolling basis throughout the year."
         else:
             scope += " Host city shown is the most recent known edition; locations rotate between editions."
-        defaults = dict(
-            name=r["name"], acronym=r["acr"], venue_type=r["type"], description=r["desc"], scope=scope,
-            primary_domain=r["domain"], core_rank=r["core"], ccf_rank=r["ccf"], h5_index=r["h5"], h5_median=r["h5m"],
-            impact_factor=_dec(r["IF"]), quartile=r["quartile"], citescore=_dec(r["citescore"]), sjr=_dec(r["sjr"]),
-            issn=r["issn"], is_rolling_submission=r["rolling"], city=r["city"], country=r["country"],
-            continent=r["continent"], country_flag_emoji=r["flag"], attendance_mode=r["mode"],
-            page_limit=r["pages"], formatting_style=r["style"], template_url=r["template_url"],
-            review_process=r["review"], is_open_access=r["oa"], apc_cost_usd=r["apc"] or None,
-            acceptance_rate=_dec(r["acc"]), publisher=r["pub"], official_website=r["url"],
-            submission_portal_url=r["portal"],
-        )
+        defaults = {
+            "name": r["name"],
+            "acronym": r["acr"],
+            "venue_type": r["type"],
+            "description": r["desc"],
+            "scope": scope,
+            "primary_domain": r["domain"],
+            "core_rank": r["core"],
+            "ccf_rank": r["ccf"],
+            "h5_index": r["h5"],
+            "h5_median": r["h5m"],
+            "impact_factor": _dec(r["IF"]),
+            "quartile": r["quartile"],
+            "citescore": _dec(r["citescore"]),
+            "sjr": _dec(r["sjr"]),
+            "issn": r["issn"],
+            "is_rolling_submission": r["rolling"],
+            "city": r["city"],
+            "country": r["country"],
+            "continent": r["continent"],
+            "country_flag_emoji": r["flag"],
+            "attendance_mode": r["mode"],
+            "page_limit": r["pages"],
+            "formatting_style": r["style"],
+            "template_url": r["template_url"],
+            "review_process": r["review"],
+            "is_open_access": r["oa"],
+            "apc_cost_usd": r["apc"] or None,
+            "acceptance_rate": _dec(r["acc"]),
+            "publisher": r["pub"],
+            "official_website": r["url"],
+            "submission_portal_url": r["portal"],
+        }
         venue, created = Venue.objects.update_or_create(slug=slugify(r["acr"]), defaults=defaults)
         tags = [ResearchSubfield.objects.get_or_create(slug=slugify(t), defaults={"name": t})[0] for t in r["tags"]]
         venue.subfields.set(tags)
         return venue, created
 
     def _upsert_cycle(self, venue, r, year, now):
-        tz = AOE if r["tz"] == "AoE" else dt_tz.utc
+        tz = AOE if r["tz"] == "AoE" else UTC
         end_of_day = time(23, 59)
 
         def at(md):
@@ -103,14 +131,19 @@ class Command(BaseCommand):
         submission = at(r["sub"])
         ev_start = date(year, *map(int, r["ev"].split("-")))
         cycle, _ = DeadlineCycle.objects.update_or_create(
-            venue=venue, year=year,
-            defaults=dict(
-                label=f"{venue.acronym} {year}", timezone_label=r["tz"],
-                submission_open_date=submission - timedelta(days=r["open_days"]),
-                abstract_deadline=at(r["abs"]), submission_deadline=submission,
-                notification_date=at(r["notif"]), camera_ready_date=at(r["cam"]),
-                event_start_date=ev_start, event_end_date=ev_start + timedelta(days=max(r["days"] - 1, 0)),
-                is_projected=submission >= now,
-            ),
+            venue=venue,
+            year=year,
+            defaults={
+                "label": f"{venue.acronym} {year}",
+                "timezone_label": r["tz"],
+                "submission_open_date": submission - timedelta(days=r["open_days"]),
+                "abstract_deadline": at(r["abs"]),
+                "submission_deadline": submission,
+                "notification_date": at(r["notif"]),
+                "camera_ready_date": at(r["cam"]),
+                "event_start_date": ev_start,
+                "event_end_date": ev_start + timedelta(days=max(r["days"] - 1, 0)),
+                "is_projected": submission >= now,
+            },
         )
         return cycle

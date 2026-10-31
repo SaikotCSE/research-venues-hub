@@ -66,16 +66,25 @@ class ProductionSettingsTests(SimpleTestCase):
 
     def test_deploy_check_is_clean(self):
         result = self.run_manage(
-            "check", "--deploy", "--fail-level", "WARNING", "--settings=config.settings.production",
-            DJANGO_SECRET_KEY="x7!kP2#qL9$wZ4^mN8&vB3*cR6(tY1)uI5_oA0+sD7=fG2-hJ9~kL4", DJANGO_ALLOWED_HOSTS="venuepulse.example.com",
+            "check",
+            "--deploy",
+            "--fail-level",
+            "WARNING",
+            "--settings=config.settings.production",
+            DJANGO_SECRET_KEY="x7!kP2#qL9$wZ4^mN8&vB3*cR6(tY1)uI5_oA0+sD7=fG2-hJ9~kL4",
+            DJANGO_ALLOWED_HOSTS="venuepulse.example.com",
             SITE_URL="https://venuepulse.example.com",
         )
         self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
 
     def test_deploy_check_flags_missing_site_url(self):
         result = self.run_manage(
-            "check", "--deploy", "--settings=config.settings.production",
-            DJANGO_SECRET_KEY="x7!kP2#qL9$wZ4^mN8&vB3*cR6(tY1)uI5_oA0+sD7=fG2-hJ9~kL4", DJANGO_ALLOWED_HOSTS="venuepulse.example.com", SITE_URL="",
+            "check",
+            "--deploy",
+            "--settings=config.settings.production",
+            DJANGO_SECRET_KEY="x7!kP2#qL9$wZ4^mN8&vB3*cR6(tY1)uI5_oA0+sD7=fG2-hJ9~kL4",
+            DJANGO_ALLOWED_HOSTS="venuepulse.example.com",
+            SITE_URL="",
         )
         self.assertIn("venuepulse.W001", result.stdout + result.stderr)
 

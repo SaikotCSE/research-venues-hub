@@ -106,7 +106,7 @@ class InsightsAndFeedTests(TestCase):
         self.assertEqual(r["Content-Type"], "text/calendar; charset=utf-8")
         self.assertGreater(body.count("BEGIN:VEVENT"), 10)
         self.assertNotIn("SUMMARY:Nature ", body)
-        self.assertTrue(all(len(l.encode()) <= 75 for l in body.split("\r\n")))
+        self.assertTrue(all(len(line.encode()) <= 75 for line in body.split("\r\n")))
 
     def test_atom_feed(self):
         r = self.client.get(reverse("venues:atom_feed"), {"status": "open"})
@@ -254,7 +254,9 @@ class ExploreUXTests(TestCase):
         from .models import Venue
 
         before = facet_options()["countries"]
-        Venue.objects.create(name="Atlantis Conf", acronym="ATL", slug="atl", venue_type="Conference", primary_domain="X", country="Atlantis", continent="Ocean")
+        Venue.objects.create(
+            name="Atlantis Conf", acronym="ATL", slug="atl", venue_type="Conference", primary_domain="X", country="Atlantis", continent="Ocean"
+        )
         self.assertIn("Atlantis", facet_options()["countries"])
         self.assertNotIn("Atlantis", before)
 
@@ -266,7 +268,7 @@ class ExploreUXTests(TestCase):
 class _QD(dict):
     def getlist(self, key):
         v = self.get(key)
-        return [] if v is None else (list(v) if isinstance(v, (list, tuple)) else [v])
+        return [] if v is None else (list(v) if isinstance(v, list | tuple) else [v])
 
 
 class DetailSEOAndActionsTests(TestCase):
@@ -344,8 +346,19 @@ class SnippetTests(TestCase):
     def test_latex_preambles_match_official_classes(self):
         from .models import Venue
 
-        expected = {"cvpr": "{cvpr}", "icml": "icml2025", "iclr": "iclr2025_conference", "acl": "[review]{acl}", "aaai": "aaai25",
-                    "osdi": "usenix", "kdd": "acmart", "miccai": "llncs", "media": "elsarticle", "nature": "sn-jnl", "ieee-tmi": "[journal]{IEEEtran}"}
+        expected = {
+            "cvpr": "{cvpr}",
+            "icml": "icml2025",
+            "iclr": "iclr2025_conference",
+            "acl": "[review]{acl}",
+            "aaai": "aaai25",
+            "osdi": "usenix",
+            "kdd": "acmart",
+            "miccai": "llncs",
+            "media": "elsarticle",
+            "nature": "sn-jnl",
+            "ieee-tmi": "[journal]{IEEEtran}",
+        }
         for slug, needle in expected.items():
             self.assertIn(needle, Venue.objects.get(slug=slug).latex_snippet, slug)
 

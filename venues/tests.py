@@ -18,8 +18,7 @@ HX = {"HTTP_HX_REQUEST": "true"}
 
 
 def make_venue(acronym="TST", **kw):
-    defaults = dict(name=f"Test {acronym}", acronym=acronym, slug=acronym.lower(), venue_type="Conference",
-                    primary_domain="AI / Machine Learning")
+    defaults = {"name": f"Test {acronym}", "acronym": acronym, "slug": acronym.lower(), "venue_type": "Conference", "primary_domain": "AI / Machine Learning"}
     defaults.update(kw)
     return Venue.objects.create(**defaults)
 
@@ -28,9 +27,13 @@ def make_cycle(venue, days_to_deadline, year=2030, open_days_before=60, **kw):
     now = timezone.now()
     deadline = now + timedelta(days=days_to_deadline)
     return DeadlineCycle.objects.create(
-        venue=venue, year=year, submission_deadline=deadline,
+        venue=venue,
+        year=year,
+        submission_deadline=deadline,
         submission_open_date=deadline - timedelta(days=open_days_before),
-        event_start_date=(deadline + timedelta(days=120)).date(), **kw)
+        event_start_date=(deadline + timedelta(days=120)).date(),
+        **kw,
+    )
 
 
 class ModelTests(TestCase):
@@ -46,9 +49,12 @@ class ModelTests(TestCase):
             make_cycle(v, 20, year=2030)
 
     def test_status_open_upcoming_past_rolling(self):
-        open_v = make_venue("OPEN"); make_cycle(open_v, 10, open_days_before=30)
-        up_v = make_venue("UP"); make_cycle(up_v, 100, open_days_before=30)
-        past_v = make_venue("PAST"); make_cycle(past_v, -5, year=2024)
+        open_v = make_venue("OPEN")
+        make_cycle(open_v, 10, open_days_before=30)
+        up_v = make_venue("UP")
+        make_cycle(up_v, 100, open_days_before=30)
+        past_v = make_venue("PAST")
+        make_cycle(past_v, -5, year=2024)
         roll_v = make_venue("ROLL", venue_type="Journal", is_rolling_submission=True)
         statuses = {v.acronym: v.deadline_status for v in Venue.objects.prefetch_related("cycles")}
         self.assertEqual(statuses, {"OPEN": "open", "UP": "upcoming", "PAST": "past", "ROLL": "rolling"})
@@ -64,7 +70,8 @@ class ModelTests(TestCase):
         self.assertEqual(when, c.abstract_deadline)
 
     def test_aoe_property(self):
-        v = make_venue(); c = make_cycle(v, 10)
+        v = make_venue()
+        c = make_cycle(v, 10)
         self.assertEqual(c.submission_aoe, c.submission_deadline - timedelta(hours=12))
 
     def test_snippets(self):
@@ -91,11 +98,46 @@ class SeedTests(TestCase):
         self.assertEqual(Venue.objects.count(), len(ALL_VENUES))
 
     def test_required_venues_present(self):
-        required = ["NeurIPS", "ICML", "ICLR", "CVPR", "ICCV", "ECCV", "AAAI", "IJCAI", "ACL", "EMNLP", "NAACL", "KDD",
-                    "MICCAI", "ISBI", "IEEE TMI", "MedIA", "Bioinformatics", "Nature Medicine", "Lancet Digital Health",
-                    "OSDI", "SOSP", "SIGCOMM", "IEEE S&P", "USENIX Security", "CCS", "NDSS",
-                    "ICSE", "FSE", "ASE", "WWW", "SIGIR", "CHI",
-                    "Nature", "Science", "PNAS", "IEEE TPAMI", "JMLR", "Nature Communications"]
+        required = [
+            "NeurIPS",
+            "ICML",
+            "ICLR",
+            "CVPR",
+            "ICCV",
+            "ECCV",
+            "AAAI",
+            "IJCAI",
+            "ACL",
+            "EMNLP",
+            "NAACL",
+            "KDD",
+            "MICCAI",
+            "ISBI",
+            "IEEE TMI",
+            "MedIA",
+            "Bioinformatics",
+            "Nature Medicine",
+            "Lancet Digital Health",
+            "OSDI",
+            "SOSP",
+            "SIGCOMM",
+            "IEEE S&P",
+            "USENIX Security",
+            "CCS",
+            "NDSS",
+            "ICSE",
+            "FSE",
+            "ASE",
+            "WWW",
+            "SIGIR",
+            "CHI",
+            "Nature",
+            "Science",
+            "PNAS",
+            "IEEE TPAMI",
+            "JMLR",
+            "Nature Communications",
+        ]
         have = set(Venue.objects.values_list("acronym", flat=True))
         self.assertEqual([r for r in required if r not in have], [])
 
@@ -225,7 +267,7 @@ class ViewTests(TestCase):
         by_if = list(filter_venues(_QD({"sort": "impact_factor", "dir": "desc"})).values_list("impact_factor", flat=True))
         non_null = [x for x in by_if if x is not None]
         self.assertEqual(non_null, sorted(non_null, reverse=True))
-        self.assertTrue(all(x is None for x in by_if[len(non_null):]), "nulls last")
+        self.assertTrue(all(x is None for x in by_if[len(non_null) :]), "nulls last")
         dl = [v.next_dl for v in filter_venues(_QD({"sort": "deadline"})) if v.next_dl]
         self.assertEqual(dl, sorted(dl))
         rank = [v.rank_score for v in filter_venues(_QD({"sort": "rank"}))]
@@ -303,6 +345,7 @@ class ViewTests(TestCase):
     def test_bookmarks_are_per_session(self):
         self.client.post(reverse("venues:bookmark", args=["cvpr"]))
         from django.test import Client
+
         other = Client()
         self.assertNotContains(other.get(reverse("venues:targets")), "CVPR")
 
@@ -337,7 +380,7 @@ class ViewTests(TestCase):
         self.assertEqual([row["acronym"] for row in rows], ["ICML"])
 
     def test_csv_formula_injection_guard(self):
-        make_venue("EVIL", name="=HYPERLINK(\"http://x\")", slug="evil")
+        make_venue("EVIL", name='=HYPERLINK("http://x")', slug="evil")
         r = self.client.get(reverse("venues:export_csv"), {"q": "EVIL"})
         self.assertIn("'=HYPERLINK", r.content.decode())
 
@@ -370,6 +413,7 @@ class ViewTests(TestCase):
 
     def test_admin_registered(self):
         from django.contrib import admin
+
         for m in (Venue, DeadlineCycle, ResearchSubfield, VenueBookmark):
             self.assertIn(m, admin.site._registry)
 
@@ -385,4 +429,4 @@ class _QD(dict):
         v = self.get(key)
         if v is None:
             return []
-        return list(v) if isinstance(v, (list, tuple)) else [v]
+        return list(v) if isinstance(v, list | tuple) else [v]

@@ -1,4 +1,5 @@
 """Development settings: DEBUG on, console email, permissive hosts."""
+
 from config.env import env, env_list
 
 from .base import *  # noqa: F403

@@ -20,7 +20,7 @@ class PublicApiTests(TestCase):
         nxt = self.client.get(r["next"]).json()
         self.assertEqual(nxt["page"], 2)
         self.assertIsNotNone(nxt["previous"])
-        self.assertTrue(set(v["slug"] for v in r["results"]).isdisjoint(v["slug"] for v in nxt["results"]))
+        self.assertTrue({v["slug"] for v in r["results"]}.isdisjoint(v["slug"] for v in nxt["results"]))
 
     def test_every_venue_has_canonical_url(self):
         r = self.client.get(reverse("venues:api_venue_detail", args=["neurips"])).json()
@@ -104,7 +104,8 @@ class TokenApiErrorTests(TestCase):
         r = self.client.get(reverse("venues:api_me"), HTTP_AUTHORIZATION=f"Bearer {u.profile.api_token}")
         self.assertEqual(r.status_code, 200)
         self.assertNotIn("Access-Control-Allow-Origin", r)
-        bad = self.client.post(reverse("venues:api_me_targets"), json.dumps({"slug": "nope"}), content_type="application/json",
-                               HTTP_AUTHORIZATION=f"Bearer {u.profile.api_token}")
+        bad = self.client.post(
+            reverse("venues:api_me_targets"), json.dumps({"slug": "nope"}), content_type="application/json", HTTP_AUTHORIZATION=f"Bearer {u.profile.api_token}"
+        )
         self.assertEqual(bad.status_code, 404)
         self.assertIn("error", bad.json())

@@ -1,5 +1,6 @@
 """Minimal RFC 5545 iCalendar generator (no third-party dependency)."""
-from datetime import date, datetime, timedelta, timezone as dt_timezone
+
+from datetime import UTC, datetime, timedelta
 
 from django.utils import timezone
 
@@ -27,14 +28,18 @@ def _fold(line):
 
 
 def _utc(dt):
-    return dt.astimezone(dt_timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    return dt.astimezone(UTC).strftime("%Y%m%dT%H%M%SZ")
 
 
 def _build(name, cycles, host):
     now = timezone.now()
     lines = [
-        "BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//VenuePulse//Deadlines Hub//EN",
-        "CALSCALE:GREGORIAN", "METHOD:PUBLISH", f"X-WR-CALNAME:{_escape(name)}",
+        "BEGIN:VCALENDAR",
+        "VERSION:2.0",
+        "PRODID:-//VenuePulse//Deadlines Hub//EN",
+        "CALSCALE:GREGORIAN",
+        "METHOD:PUBLISH",
+        f"X-WR-CALNAME:{_escape(name)}",
     ]
     for cycle in cycles:
         venue = cycle.venue
@@ -52,7 +57,7 @@ def _build(name, cycles, host):
                 lines += [f"DTSTART;VALUE=DATE:{value.strftime('%Y%m%d')}", f"DTEND;VALUE=DATE:{(value + timedelta(days=1)).strftime('%Y%m%d')}"]
             lines.append("END:VEVENT")
     lines.append("END:VCALENDAR")
-    return "\r\n".join(_fold(l) for l in lines) + "\r\n"
+    return "\r\n".join(_fold(line) for line in lines) + "\r\n"
 
 
 def build_calendar(venue, cycles, request_host="venuepulse"):

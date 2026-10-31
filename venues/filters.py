@@ -1,4 +1,5 @@
 """QuerySet filtering / sorting shared by the HTML views, JSON API and exports."""
+
 from datetime import timedelta
 from decimal import Decimal, InvalidOperation
 
@@ -56,34 +57,36 @@ def _decimal(value):
 
 def with_annotations(qs, now=None):
     now = now or timezone.now()
-    next_dl = (
-        DeadlineCycle.objects.filter(venue=OuterRef("pk"), submission_deadline__gte=now)
-        .order_by("submission_deadline")
-        .values("submission_deadline")[:1]
-    )
+    next_dl = DeadlineCycle.objects.filter(venue=OuterRef("pk"), submission_deadline__gte=now).order_by("submission_deadline").values("submission_deadline")[:1]
     core = Case(
-        When(core_rank="A*", then=Value(5)), When(core_rank="A", then=Value(4)),
-        When(core_rank="B", then=Value(3)), When(core_rank="C", then=Value(2)),
-        default=Value(0), output_field=IntegerField(),
+        When(core_rank="A*", then=Value(5)),
+        When(core_rank="A", then=Value(4)),
+        When(core_rank="B", then=Value(3)),
+        When(core_rank="C", then=Value(2)),
+        default=Value(0),
+        output_field=IntegerField(),
     )
     ccf = Case(
-        When(ccf_rank="A", then=Value(5)), When(ccf_rank="B", then=Value(3)),
-        When(ccf_rank="C", then=Value(2)), default=Value(0), output_field=IntegerField(),
+        When(ccf_rank="A", then=Value(5)),
+        When(ccf_rank="B", then=Value(3)),
+        When(ccf_rank="C", then=Value(2)),
+        default=Value(0),
+        output_field=IntegerField(),
     )
     quart = Case(
-        When(quartile="Q1", then=Value(5)), When(quartile="Q2", then=Value(4)),
-        When(quartile="Q3", then=Value(3)), When(quartile="Q4", then=Value(2)),
-        default=Value(0), output_field=IntegerField(),
+        When(quartile="Q1", then=Value(5)),
+        When(quartile="Q2", then=Value(4)),
+        When(quartile="Q3", then=Value(3)),
+        When(quartile="Q4", then=Value(2)),
+        default=Value(0),
+        output_field=IntegerField(),
     )
     return qs.annotate(next_dl=Subquery(next_dl), rank_score=Greatest(core, ccf, quart))
 
 
 def with_tracker_counts(qs):
     """Annotate ``trackers``: how many people starred each venue (social proof)."""
-    trackers = (
-        VenueBookmark.objects.filter(venue=OuterRef("pk"), is_starred=True)
-        .order_by().values("venue").annotate(c=Count("pk")).values("c")
-    )
+    trackers = VenueBookmark.objects.filter(venue=OuterRef("pk"), is_starred=True).order_by().values("venue").annotate(c=Count("pk")).values("c")
     return qs.annotate(trackers=Coalesce(Subquery(trackers), 0))
 
 
@@ -95,15 +98,24 @@ def filter_venues(params, base=None, now=None):
     q = (params.get("q") or "").strip()
     if q:
         qs = qs.filter(
-            Q(name__icontains=q) | Q(acronym__icontains=q) | Q(description__icontains=q)
-            | Q(primary_domain__icontains=q) | Q(publisher__icontains=q)
+            Q(name__icontains=q)
+            | Q(acronym__icontains=q)
+            | Q(description__icontains=q)
+            | Q(primary_domain__icontains=q)
+            | Q(publisher__icontains=q)
             | Q(subfields__name__icontains=q)
         ).distinct()
 
     simple = {
-        "type": "venue_type__in", "domain": "primary_domain__in", "core": "core_rank__in",
-        "ccf": "ccf_rank__in", "quartile": "quartile__in", "country": "country__in",
-        "continent": "continent__in", "review": "review_process__in", "publisher": "publisher__in",
+        "type": "venue_type__in",
+        "domain": "primary_domain__in",
+        "core": "core_rank__in",
+        "ccf": "ccf_rank__in",
+        "quartile": "quartile__in",
+        "country": "country__in",
+        "continent": "continent__in",
+        "review": "review_process__in",
+        "publisher": "publisher__in",
     }
     for key, lookup in simple.items():
         values = _list(params, key)
@@ -123,8 +135,9 @@ def filter_venues(params, base=None, now=None):
 
     within = _int(params.get("within"))
     if within and 0 < within <= 3650:
-        qs = qs.filter(Exists(DeadlineCycle.objects.filter(
-            venue=OuterRef("pk"), submission_deadline__gte=now, submission_deadline__lte=now + timedelta(days=within))))
+        qs = qs.filter(
+            Exists(DeadlineCycle.objects.filter(venue=OuterRef("pk"), submission_deadline__gte=now, submission_deadline__lte=now + timedelta(days=within)))
+        )
 
     cycles = DeadlineCycle.objects.filter(venue=OuterRef("pk"))
     status = params.get("status")
@@ -144,8 +157,12 @@ def apply_sort(qs, sort, direction):
     sort = sort if sort in SORT_OPTIONS else "deadline"
     direction = direction if direction in ("asc", "desc") else SORT_OPTIONS[sort][1]
     field = {
-        "deadline": "next_dl", "impact_factor": "impact_factor", "acceptance_rate": "acceptance_rate",
-        "h5_index": "h5_index", "rank": "rank_score", "name": "acronym",
+        "deadline": "next_dl",
+        "impact_factor": "impact_factor",
+        "acceptance_rate": "acceptance_rate",
+        "h5_index": "h5_index",
+        "rank": "rank_score",
+        "name": "acronym",
     }[sort]
     expr = F(field).asc(nulls_last=True) if direction == "asc" else F(field).desc(nulls_last=True)
     return qs.order_by(expr, "acronym")
@@ -156,6 +173,7 @@ def facet_options():
     key = f"facets:{catalog_version()}"
     data = cache.get(key)
     if data is None:
+
         def distinct(field):
             return list(Venue.objects.exclude(**{field: ""}).order_by(field).values_list(field, flat=True).distinct())
 

@@ -1,4 +1,5 @@
 """Guard rails against N+1 query regressions on the hottest pages."""
+
 from io import StringIO
 
 from django.contrib.auth.models import User

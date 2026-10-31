@@ -27,8 +27,10 @@ class TrackerTests(TestCase):
         return Submission.objects.create(user=self.user, paper=paper, venue=self.venue, cycle=self.venue.next_cycle, **kw)
 
     def test_create_with_new_paper_and_checklist(self):
-        r = self.client.post(reverse("tracker:create") + "?venue=cvpr", {
-            "new_paper_title": "Great Idea", "venue": self.venue.pk, "cycle": self.venue.next_cycle.pk, "status": "writing"})
+        r = self.client.post(
+            reverse("tracker:create") + "?venue=cvpr",
+            {"new_paper_title": "Great Idea", "venue": self.venue.pk, "cycle": self.venue.next_cycle.pk, "status": "writing"},
+        )
         sub = Submission.objects.get(paper__title="Great Idea")
         self.assertRedirects(r, reverse("tracker:detail", args=[sub.pk]))
         items = list(sub.checklist_items.values_list("text", flat=True))
@@ -37,7 +39,7 @@ class TrackerTests(TestCase):
 
     def test_create_prefills_from_query(self):
         r = self.client.get(reverse("tracker:create") + "?venue=cvpr")
-        self.assertContains(r, 'value="%d" selected' % self.venue.pk)
+        self.assertContains(r, f'value="{self.venue.pk}" selected')
 
     def test_create_requires_paper(self):
         r = self.client.post(reverse("tracker:create"), {"venue": self.venue.pk, "status": "planning"})
@@ -96,8 +98,10 @@ class TrackerTests(TestCase):
 
     def test_edit_and_delete(self):
         sub = self.make_sub()
-        r = self.client.post(reverse("tracker:detail", args=[sub.pk]), {"paper": sub.paper.pk, "venue": self.venue.pk, "cycle": sub.cycle.pk,
-                                                                        "status": "review", "notes": "waiting"})
+        r = self.client.post(
+            reverse("tracker:detail", args=[sub.pk]),
+            {"paper": sub.paper.pk, "venue": self.venue.pk, "cycle": sub.cycle.pk, "status": "review", "notes": "waiting"},
+        )
         self.assertRedirects(r, reverse("tracker:detail", args=[sub.pk]))
         sub.refresh_from_db()
         self.assertEqual((sub.status, sub.notes), ("review", "waiting"))

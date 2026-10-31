@@ -79,10 +79,12 @@ class Submission(models.Model):
         """Create checklist items from the venue's formatting rules (once)."""
         if self.checklist_items.exists():
             return
-        items = [f"Use template: {self.venue.formatting_style or 'see call for papers'}",
-                 f"Respect page limit: {self.venue.page_limit or 'see call for papers'}",
-                 "Run spell-check and verify references / BibTeX",
-                 "Check figures are legible in grayscale"]
+        items = [
+            f"Use template: {self.venue.formatting_style or 'see call for papers'}",
+            f"Respect page limit: {self.venue.page_limit or 'see call for papers'}",
+            "Run spell-check and verify references / BibTeX",
+            "Check figures are legible in grayscale",
+        ]
         if self.venue.review_process == Venue.ReviewProcess.DOUBLE_BLIND:
             items.append("Anonymise authors, acknowledgements and self-citations")
         if not self.venue.is_open_access and self.venue.is_journal:
@@ -99,3 +101,6 @@ class ChecklistItem(models.Model):
 
     class Meta:
         ordering = ["position", "id"]
+
+    def __str__(self):
+        return f"{'✓' if self.done else '○'} {self.text}"

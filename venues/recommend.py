@@ -1,4 +1,5 @@
 """Lightweight, dependency-free venue recommender and deadline planner."""
+
 import re
 from datetime import timedelta
 
@@ -7,9 +8,11 @@ from django.utils import timezone
 from .filters import with_annotations
 from .models import Venue
 
-STOP = set("""a an and are as at be by for from has have in into is it its of on or that the their this to we with our
+STOP = set(
+    """a an and are as at be by for from has have in into is it its of on or that the their this to we with our
 using use based via over under between towards toward new paper method methods approach approaches novel study analysis
-can show shows propose proposed present results model models""".split())
+can show shows propose proposed present results model models""".split()
+)
 
 
 def tokens(text):
@@ -75,7 +78,11 @@ def plan(ready_date, *, domain=None, venue_type=None, max_months=9, limit=40):
 
     start = ready_date
     end = ready_date + timedelta(days=30 * max_months)
-    cycles = DeadlineCycle.objects.filter(submission_deadline__date__gte=start, submission_deadline__date__lte=end).select_related("venue").prefetch_related("venue__subfields")
+    cycles = (
+        DeadlineCycle.objects.filter(submission_deadline__date__gte=start, submission_deadline__date__lte=end)
+        .select_related("venue")
+        .prefetch_related("venue__subfields")
+    )
     if domain:
         cycles = cycles.filter(venue__primary_domain=domain)
     if venue_type:

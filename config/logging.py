@@ -1,4 +1,5 @@
 """Logging helpers: attach the current request id to every log record."""
+
 import contextvars
 import logging
 

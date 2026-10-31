@@ -14,8 +14,19 @@ class DeadlineCycleInline(admin.TabularInline):
     model = DeadlineCycle
     extra = 0
     ordering = ["-year"]
-    fields = ("year", "timezone_label", "submission_open_date", "abstract_deadline", "submission_deadline", "notification_date",
-              "camera_ready_date", "event_start_date", "event_end_date", "is_projected", "verified_at")
+    fields = (
+        "year",
+        "timezone_label",
+        "submission_open_date",
+        "abstract_deadline",
+        "submission_deadline",
+        "notification_date",
+        "camera_ready_date",
+        "event_start_date",
+        "event_end_date",
+        "is_projected",
+        "verified_at",
+    )
     readonly_fields = ("verified_at",)
     show_change_link = True
 
@@ -25,7 +36,12 @@ class DeadlineStatusFilter(admin.SimpleListFilter):
     parameter_name = "deadline"
 
     def lookups(self, request, model_admin):
-        return [("upcoming", "Has upcoming deadline"), ("30d", "Closing within 30 days"), ("none", "No upcoming deadline"), ("projected", "Next deadline is projected")]
+        return [
+            ("upcoming", "Has upcoming deadline"),
+            ("30d", "Closing within 30 days"),
+            ("none", "No upcoming deadline"),
+            ("projected", "Next deadline is projected"),
+        ]
 
     def queryset(self, request, queryset):
         now = timezone.now()
@@ -55,7 +71,19 @@ def export_selected_csv(modeladmin, request, queryset):
 class VenueAdmin(admin.ModelAdmin):
     list_display = ("acronym", "name", "venue_type", "primary_domain", "rank_display", "next_paper_deadline", "trackers", "country", "is_open_access")
     list_display_links = ("acronym", "name")
-    list_filter = (DeadlineStatusFilter, "venue_type", "primary_domain", "core_rank", "ccf_rank", "quartile", "review_process", "is_open_access", "continent", "publisher", "is_rolling_submission")
+    list_filter = (
+        DeadlineStatusFilter,
+        "venue_type",
+        "primary_domain",
+        "core_rank",
+        "ccf_rank",
+        "quartile",
+        "review_process",
+        "is_open_access",
+        "continent",
+        "publisher",
+        "is_rolling_submission",
+    )
     search_fields = ("name", "acronym", "description", "publisher", "subfields__name")
     search_help_text = "Search by name, acronym, description, publisher or subfield tag."
     prepopulated_fields = {"slug": ("acronym",)}
@@ -72,16 +100,34 @@ class VenueAdmin(admin.ModelAdmin):
         ("Journal metrics", {"fields": ("impact_factor", "quartile", "citescore", "sjr", "issn")}),
         ("Timeline", {"fields": ("is_rolling_submission",)}),
         ("Location", {"fields": ("city", "country", "continent", "country_flag_emoji", "attendance_mode")}),
-        ("Submission guidelines", {"fields": ("page_limit", "formatting_style", "template_url", "review_process", "is_open_access", "apc_cost_usd",
-                                              "acceptance_rate", "official_website", "submission_portal_url")}),
+        (
+            "Submission guidelines",
+            {
+                "fields": (
+                    "page_limit",
+                    "formatting_style",
+                    "template_url",
+                    "review_process",
+                    "is_open_access",
+                    "apc_cost_usd",
+                    "acceptance_rate",
+                    "official_website",
+                    "submission_portal_url",
+                )
+            },
+        ),
         ("Record", {"fields": ("created_at", "updated_at"), "classes": ("collapse",)}),
     )
 
     def get_queryset(self, request):
         now = timezone.now()
-        return super().get_queryset(request).annotate(
-            _next_deadline=Min("cycles__submission_deadline", filter=Q(cycles__submission_deadline__gte=now)),
-            _trackers=Count("bookmarks", filter=Q(bookmarks__is_starred=True), distinct=True),
+        return (
+            super()
+            .get_queryset(request)
+            .annotate(
+                _next_deadline=Min("cycles__submission_deadline", filter=Q(cycles__submission_deadline__gte=now)),
+                _trackers=Count("bookmarks", filter=Q(bookmarks__is_starred=True), distinct=True),
+            )
         )
 
     @admin.display(description="Rank")

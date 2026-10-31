@@ -1,4 +1,5 @@
 """Build the data for the Gantt-style "Timeline" view: one row per venue across a 12-month window."""
+
 from datetime import date, timedelta
 
 SEGMENT_STYLES = {
@@ -53,8 +54,17 @@ def timeline_rows(venues, today: date, months: int = 12):
                 continue
             left, right = pct(a), pct(b)
             label, css = SEGMENT_STYLES[kind]
-            segments.append({"kind": kind, "left": left, "width": max(right - left, 0.6), "label": label, "css": css,
-                             "start": a, "end": b - timedelta(days=1) if kind == "event" else b})
+            segments.append(
+                {
+                    "kind": kind,
+                    "left": left,
+                    "width": max(right - left, 0.6),
+                    "label": label,
+                    "css": css,
+                    "start": a,
+                    "end": b - timedelta(days=1) if kind == "event" else b,
+                }
+            )
         markers = []
         for label, d in (("Abstract deadline", c.abstract_deadline), ("Paper deadline", c.submission_deadline)):
             if d and start <= d.date() < end:
@@ -64,11 +74,16 @@ def timeline_rows(venues, today: date, months: int = 12):
             parts.append(f"notification {notif:%b %d, %Y}")
         if c.event_start_date:
             parts.append(f"event {c.event_start_date:%b %d, %Y}")
-        rows.append({
-            "venue": v, "cycle": c, "segments": segments, "markers": markers,
-            "sort_key": sub if sub >= today else (c.event_start_date or sub),
-            "summary": f"{c}: " + "; ".join(parts),
-        })
+        rows.append(
+            {
+                "venue": v,
+                "cycle": c,
+                "segments": segments,
+                "markers": markers,
+                "sort_key": sub if sub >= today else (c.event_start_date or sub),
+                "summary": f"{c}: " + "; ".join(parts),
+            }
+        )
     rows.sort(key=lambda r: (r["sort_key"], r["venue"].acronym))
     return {
         "rows": rows,

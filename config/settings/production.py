@@ -1,4 +1,5 @@
 """Production settings: secure by default. Every secret comes from the environment."""
+
 from django.core.exceptions import ImproperlyConfigured
 
 from config.env import env, env_bool, env_int

@@ -1,4 +1,5 @@
 """Calendar deep links and schema.org structured data for venue pages."""
+
 from datetime import UTC, datetime, time, timedelta
 from urllib.parse import urlencode
 
@@ -24,7 +25,13 @@ def calendar_links(venue, cycle, page_url: str) -> dict:
     title = f"{cycle} paper deadline"
     details = f"{venue.name} — paper submission deadline ({cycle.timezone_label}).\n{page_url}"
     google = "https://calendar.google.com/calendar/render?" + urlencode(
-        {"action": "TEMPLATE", "text": title, "dates": f"{_gcal(start)}/{_gcal(end)}", "details": details, "location": venue.submission_portal_url or venue.official_website}
+        {
+            "action": "TEMPLATE",
+            "text": title,
+            "dates": f"{_gcal(start)}/{_gcal(end)}",
+            "details": details,
+            "location": venue.submission_portal_url or venue.official_website,
+        }
     )
     outlook = "https://outlook.live.com/calendar/0/deeplink/compose?" + urlencode(
         {"path": "/calendar/action/compose", "rru": "addevent", "subject": title, "startdt": start.isoformat(), "enddt": end.isoformat(), "body": details}
@@ -61,16 +68,24 @@ def structured_data(venue, cycle, page_url: str) -> dict:
     """schema.org JSON-LD: an Event for conferences/workshops, a Periodical for journals."""
     if venue.is_journal:
         data = {
-            "@context": "https://schema.org", "@type": "Periodical", "name": venue.name, "alternateName": venue.acronym,
-            "url": venue.official_website or page_url, "description": venue.description,
+            "@context": "https://schema.org",
+            "@type": "Periodical",
+            "name": venue.name,
+            "alternateName": venue.acronym,
+            "url": venue.official_website or page_url,
+            "description": venue.description,
             "publisher": {"@type": "Organization", "name": venue.publisher} if venue.publisher else None,
-            "issn": venue.issn or None, "isAccessibleForFree": venue.is_open_access,
+            "issn": venue.issn or None,
+            "isAccessibleForFree": venue.is_open_access,
         }
     else:
         data = {
-            "@context": "https://schema.org", "@type": "Event",
-            "name": str(cycle) if cycle else venue.name, "alternateName": venue.acronym,
-            "description": venue.description, "url": venue.official_website or page_url,
+            "@context": "https://schema.org",
+            "@type": "Event",
+            "name": str(cycle) if cycle else venue.name,
+            "alternateName": venue.acronym,
+            "description": venue.description,
+            "url": venue.official_website or page_url,
             "eventAttendanceMode": ATTENDANCE.get(venue.attendance_mode),
             "eventStatus": "https://schema.org/EventScheduled",
             "organizer": {"@type": "Organization", "name": venue.publisher, "url": venue.official_website} if venue.publisher else None,
@@ -80,7 +95,8 @@ def structured_data(venue, cycle, page_url: str) -> dict:
             data["endDate"] = (cycle.event_end_date or cycle.event_start_date).isoformat()
         if venue.city or venue.country:
             data["location"] = {
-                "@type": "Place", "name": ", ".join(p for p in (venue.city, venue.country) if p),
+                "@type": "Place",
+                "name": ", ".join(p for p in (venue.city, venue.country) if p),
                 "address": {"@type": "PostalAddress", "addressLocality": venue.city, "addressCountry": venue.country},
             }
     return {k: v for k, v in data.items() if v not in (None, "")}

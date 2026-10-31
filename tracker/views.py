@@ -5,7 +5,7 @@ from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
-from venues.models import DeadlineCycle, Venue
+from venues.models import Venue
 
 from .forms import PaperForm, SubmissionForm
 from .models import ChecklistItem, Paper, Submission
@@ -14,7 +14,8 @@ from .models import ChecklistItem, Paper, Submission
 @login_required
 def board(request):
     subs = request.user.submissions.select_related("paper", "venue", "cycle").annotate(
-        items_total=Count("checklist_items"), items_done=Count("checklist_items", filter=Q(checklist_items__done=True)))
+        items_total=Count("checklist_items"), items_done=Count("checklist_items", filter=Q(checklist_items__done=True))
+    )
     by_status = {s: [] for s in Submission.BOARD_ORDER}
     for sub in subs:
         if sub.status in by_status:
@@ -22,8 +23,12 @@ def board(request):
     columns = [{"key": k, "label": Submission.Status(k).label, "items": by_status[k]} for k in Submission.BOARD_ORDER]
     decided = request.user.submissions.filter(status__in=["accepted", "rejected"])
     acc = decided.filter(status="accepted").count()
-    stats = {"total": subs.count(), "active": subs.filter(status__in=Submission.ACTIVE).count(), "accepted": acc,
-             "rate": round(100 * acc / decided.count()) if decided.count() else None}
+    stats = {
+        "total": subs.count(),
+        "active": subs.filter(status__in=Submission.ACTIVE).count(),
+        "accepted": acc,
+        "rate": round(100 * acc / decided.count()) if decided.count() else None,
+    }
     return render(request, "tracker/board.html", {"columns": columns, "stats": stats, "statuses": Submission.Status.choices})
 
 

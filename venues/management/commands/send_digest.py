@@ -1,16 +1,17 @@
 """Weekly email digest: upcoming deadlines for each user's starred venues and active submissions.
 
-    python manage.py send_digest            # send to everyone who opted in
-    python manage.py send_digest --if-due   # only users whose last digest is ≥ 7 days old (safe to run hourly)
-    python manage.py send_digest --user alice --dry-run
+python manage.py send_digest            # send to everyone who opted in
+python manage.py send_digest --if-due   # only users whose last digest is ≥ 7 days old (safe to run hourly)
+python manage.py send_digest --user alice --dry-run
 """
+
 import logging
 from datetime import timedelta
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.mail import EmailMultiAlternatives
 from django.core.management.base import BaseCommand
-from django.conf import settings
 from django.template.loader import render_to_string
 from django.utils import timezone
 
@@ -28,7 +29,8 @@ def digest_context(user, now=None):
     venue_ids = set(VenueBookmark.objects.filter(user=user, is_starred=True).values_list("venue_id", flat=True))
     cycles = list(
         DeadlineCycle.objects.filter(venue_id__in=venue_ids, submission_deadline__gte=now, submission_deadline__lte=now + timedelta(days=HORIZON_DAYS))
-        .select_related("venue").order_by("submission_deadline")
+        .select_related("venue")
+        .order_by("submission_deadline")
     )
     submissions = list(user.submissions.filter(status__in=Submission.ACTIVE).select_related("paper", "venue", "cycle"))
     if not cycles and not submissions:

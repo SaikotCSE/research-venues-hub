@@ -3,6 +3,7 @@
 Run periodically (e.g. hourly via cron):  python manage.py send_reminders [--dry-run]
 Idempotent: each (user, venue, cycle, milestone, offset) reminder is sent at most once.
 """
+
 from datetime import timedelta
 
 from django.conf import settings
@@ -15,7 +16,6 @@ from django.utils import timezone
 
 from accounts.context_processors import site_base_url
 from accounts.models import Notification
-from tracker.models import Submission
 from venues.filters import filter_venues
 from venues.models import DeadlineCycle, VenueBookmark
 
@@ -34,8 +34,9 @@ class Command(BaseCommand):
             offsets = profile.reminder_offsets
             venue_ids = set(VenueBookmark.objects.filter(user=user, is_starred=True).values_list("venue_id", flat=True))
             venue_ids |= set(user.submissions.filter(status__in=["planning", "writing"]).values_list("venue_id", flat=True))
-            cycles = DeadlineCycle.objects.filter(venue_id__in=venue_ids, submission_deadline__gte=now,
-                                                  submission_deadline__lte=now + timedelta(days=max(offsets) + 1)).select_related("venue")
+            cycles = DeadlineCycle.objects.filter(
+                venue_id__in=venue_ids, submission_deadline__gte=now, submission_deadline__lte=now + timedelta(days=max(offsets) + 1)
+            ).select_related("venue")
             fresh = []
             for c in cycles:
                 for label, when in (("Abstract", c.abstract_deadline), ("Paper", c.submission_deadline)):
@@ -58,8 +59,13 @@ class Command(BaseCommand):
                     continue
                 Notification.objects.create(user=user, kind="deadline", venue=venue, message=msg, key=key, url=venue.get_absolute_url())
                 if profile.email_reminders and user.email:
-                    send_mail(f"VenuePulse reminder: {venue.acronym}", f"{msg}\n\n{site_base_url()}{venue.get_absolute_url()}\n",
-                              settings.DEFAULT_FROM_EMAIL, [user.email], fail_silently=True)
+                    send_mail(
+                        f"VenuePulse reminder: {venue.acronym}",
+                        f"{msg}\n\n{site_base_url()}{venue.get_absolute_url()}\n",
+                        settings.DEFAULT_FROM_EMAIL,
+                        [user.email],
+                        fail_silently=True,
+                    )
                     emails += 1
             for search in user.saved_searches.filter(alert=True):
                 count = filter_venues(QueryDict(search.querystring)).count()
@@ -67,8 +73,12 @@ class Command(BaseCommand):
                     key = f"search:{search.pk}:{count}"
                     if not opts["dry_run"] and not Notification.objects.filter(user=user, key=key).exists():
                         Notification.objects.create(
-                            user=user, kind="search", message=f"Saved search “{search.name}” now matches {count} venues (+{count - search.last_count})",
-                            key=key, url=f"{reverse('venues:list')}?{search.querystring}")
+                            user=user,
+                            kind="search",
+                            message=f"Saved search “{search.name}” now matches {count} venues (+{count - search.last_count})",
+                            key=key,
+                            url=f"{reverse('venues:list')}?{search.querystring}",
+                        )
                         created += 1
                 if not opts["dry_run"]:
                     search.last_count = count

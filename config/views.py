@@ -1,4 +1,5 @@
 """Project-level operational endpoints: health check, robots.txt, web manifest, favicon."""
+
 import logging
 
 from django.conf import settings

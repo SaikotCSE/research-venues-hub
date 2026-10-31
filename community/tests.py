@@ -65,8 +65,10 @@ class CommunityTests(TestCase):
     def test_suggestion_flow_and_approval(self):
         cycle = self.venue.next_cycle
         new = timezone.now() + timedelta(days=200)
-        r = self.client.post(reverse("community:suggest", args=[cycle.pk]), {
-            "field": "submission_deadline", "new_value": new.strftime("%Y-%m-%dT%H:%M"), "source_url": "neurips.cc/dates", "note": "Official"})
+        r = self.client.post(
+            reverse("community:suggest", args=[cycle.pk]),
+            {"field": "submission_deadline", "new_value": new.strftime("%Y-%m-%dT%H:%M"), "source_url": "neurips.cc/dates", "note": "Official"},
+        )
         self.assertRedirects(r, self.venue.get_absolute_url())
         s = DeadlineSuggestion.objects.get()
         self.assertEqual((s.status, s.source_url), ("pending", "https://neurips.cc/dates"))
@@ -78,5 +80,6 @@ class CommunityTests(TestCase):
 
     def test_admin_actions(self):
         from django.contrib import admin
+
         self.assertIn(DeadlineSuggestion, admin.site._registry)
         self.assertIn("approve", admin.site._registry[DeadlineSuggestion].actions or ["approve"])

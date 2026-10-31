@@ -1,4 +1,5 @@
 """Cross-cutting middleware: request ids and security headers (CSP with per-request nonce)."""
+
 import re
 import secrets
 import uuid

@@ -1,4 +1,5 @@
 """Resolve "who owns this bookmark" for logged-in users and anonymous visitors alike."""
+
 import uuid
 
 from .models import VenueBookmark

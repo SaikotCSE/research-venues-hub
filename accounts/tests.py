@@ -29,14 +29,16 @@ class AuthTests(AccountTestBase):
         self.assertNotEqual(self.user.profile.calendar_token, self.user.profile.api_token)
 
     def test_signup_flow(self):
-        r = self.client.post(reverse("accounts:signup"), {"username": "bob", "email": "bob@example.com",
-                                                          "password1": "S3cure-pass-987", "password2": "S3cure-pass-987"})
+        r = self.client.post(
+            reverse("accounts:signup"), {"username": "bob", "email": "bob@example.com", "password1": "S3cure-pass-987", "password2": "S3cure-pass-987"}
+        )
         self.assertRedirects(r, reverse("accounts:profile"))
         self.assertTrue(User.objects.get(username="bob").profile)
 
     def test_signup_rejects_duplicate_email(self):
-        r = self.client.post(reverse("accounts:signup"), {"username": "bob", "email": "ALICE@example.com",
-                                                          "password1": "S3cure-pass-987", "password2": "S3cure-pass-987"})
+        r = self.client.post(
+            reverse("accounts:signup"), {"username": "bob", "email": "ALICE@example.com", "password1": "S3cure-pass-987", "password2": "S3cure-pass-987"}
+        )
         self.assertContains(r, "already exists")
 
     def test_login_logout(self):
@@ -72,8 +74,17 @@ class AuthTests(AccountTestBase):
         self.login()
         self.client.post(reverse("venues:bookmark", args=["cvpr"]))
         self.assertContains(self.client.get(reverse("accounts:dashboard")), "Welcome back")
-        r = self.client.post(reverse("accounts:profile"), {"display_name": "Alice", "affiliation": "MIT", "research_interests": "vision, medical imaging",
-                                                           "timezone": "Europe/Paris", "email_reminders": "on", "reminder_days": "30, 3"})
+        r = self.client.post(
+            reverse("accounts:profile"),
+            {
+                "display_name": "Alice",
+                "affiliation": "MIT",
+                "research_interests": "vision, medical imaging",
+                "timezone": "Europe/Paris",
+                "email_reminders": "on",
+                "reminder_days": "30, 3",
+            },
+        )
         self.assertRedirects(r, reverse("accounts:profile"))
         p = User.objects.get(pk=self.user.pk).profile
         self.assertEqual((p.timezone, p.reminder_offsets, p.interest_keywords), ("Europe/Paris", [30, 3], ["vision", "medical imaging"]))
@@ -146,8 +157,9 @@ class ListsAndSearchTests(AccountTestBase):
 class ReminderTests(AccountTestBase):
     def setUp(self):
         v = Venue.objects.create(name="Soon Conf", acronym="SOON", slug="soon", venue_type="Conference", primary_domain="X")
-        self.cycle = DeadlineCycle.objects.create(venue=v, year=2031, submission_deadline=timezone.now() + timedelta(days=5),
-                                                  submission_open_date=timezone.now() - timedelta(days=30))
+        self.cycle = DeadlineCycle.objects.create(
+            venue=v, year=2031, submission_deadline=timezone.now() + timedelta(days=5), submission_open_date=timezone.now() - timedelta(days=30)
+        )
         VenueBookmark.objects.create(user=self.user, venue=v)
 
     def run_cmd(self, *args):
@@ -222,8 +234,9 @@ class AccountManagementTests(AccountTestBase):
 
     def test_password_change(self):
         self.login()
-        r = self.client.post(reverse("accounts:password_change"), {
-            "old_password": "pw-12345-xyz", "new_password1": "Another-pass-55", "new_password2": "Another-pass-55"})
+        r = self.client.post(
+            reverse("accounts:password_change"), {"old_password": "pw-12345-xyz", "new_password1": "Another-pass-55", "new_password2": "Another-pass-55"}
+        )
         self.assertRedirects(r, reverse("accounts:settings"))
         self.assertTrue(User.objects.get(pk=self.user.pk).check_password("Another-pass-55"))
         self.assertEqual(self.client.get(reverse("accounts:dashboard")).status_code, 200, "session survives password change")

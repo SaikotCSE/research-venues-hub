@@ -1,4 +1,5 @@
 """Gunicorn configuration (12-factor: everything tunable through the environment)."""
+
 import multiprocessing
 import os
 
@@ -8,7 +9,7 @@ threads = int(os.environ.get("GUNICORN_THREADS", 2))
 timeout = int(os.environ.get("GUNICORN_TIMEOUT", 30))
 graceful_timeout = 20
 keepalive = 5
-max_requests = 1000          # recycle workers to bound memory growth
+max_requests = 1000  # recycle workers to bound memory growth
 max_requests_jitter = 100
 forwarded_allow_ips = os.environ.get("FORWARDED_ALLOW_IPS", "*")  # trust the platform's proxy for X-Forwarded-*
 accesslog = "-"

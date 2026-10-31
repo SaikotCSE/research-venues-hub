@@ -2,6 +2,7 @@
 
 Uses in-memory SQLite unless DATABASE_URL is set (CI also runs the suite on PostgreSQL).
 """
+
 import dj_database_url
 
 from config.env import env
@@ -14,10 +15,7 @@ ALLOWED_HOSTS = ["testserver", "localhost"]
 SITE_URL = "http://testserver"
 PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
 EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
-DATABASES = {
-    "default": dj_database_url.parse(env("DATABASE_URL")) if env("DATABASE_URL")
-    else {"ENGINE": "django.db.backends.sqlite3", "NAME": ":memory:"}
-}
+DATABASES = {"default": dj_database_url.parse(env("DATABASE_URL")) if env("DATABASE_URL") else {"ENGINE": "django.db.backends.sqlite3", "NAME": ":memory:"}}
 CACHES = {"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache", "LOCATION": "venuepulse-tests"}}
 RATELIMIT_ENABLED = False  # individual tests opt in with override_settings
 LOGGING = {"version": 1, "disable_existing_loggers": False, "root": {"handlers": [], "level": "CRITICAL"}}

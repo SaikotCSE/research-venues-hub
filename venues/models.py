@@ -32,7 +32,10 @@ class HttpsURLField(models.URLField):
     def formfield(self, **kwargs):
         from django import forms
 
-        kwargs.setdefault("form_class", type("_HttpsURL", (forms.URLField,), {"__init__": lambda self, *a, **kw: forms.URLField.__init__(self, *a, assume_scheme="https", **kw)}))
+        kwargs.setdefault(
+            "form_class",
+            type("_HttpsURL", (forms.URLField,), {"__init__": lambda self, *a, **kw: forms.URLField.__init__(self, *a, assume_scheme="https", **kw)}),
+        )
         return super().formfield(**kwargs)
 
 
@@ -46,13 +49,13 @@ class ResearchSubfield(models.Model):
         ordering = ["name"]
         verbose_name = "research subfield"
 
+    def __str__(self):
+        return self.name
+
     def save(self, *args, **kwargs):
         if not self.slug:
             self.slug = slugify(self.name)
         super().save(*args, **kwargs)
-
-    def __str__(self):
-        return self.name
 
 
 class Venue(models.Model):
@@ -212,7 +215,9 @@ class Venue(models.Model):
         ]
         if self.review_process == self.ReviewProcess.DOUBLE_BLIND:
             items.append(("Anonymity", "Remove author names, affiliations and self-identifying links"))
-        items.append(("Open access", "Yes" + (f" (APC ${self.apc_cost_usd:,})" if self.apc_cost_usd else "") if self.is_open_access else "No (subscription / hybrid)"))
+        items.append(
+            ("Open access", "Yes" + (f" (APC ${self.apc_cost_usd:,})" if self.apc_cost_usd else "") if self.is_open_access else "No (subscription / hybrid)")
+        )
         if self.template_url:
             items.append(("Template link", self.template_url))
         return items

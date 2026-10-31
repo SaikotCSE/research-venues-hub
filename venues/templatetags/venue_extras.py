@@ -67,12 +67,15 @@ def icon(name, css="h-4 w-4", label=""):
         return format_html(
             '<svg class="icon {}" role="img" aria-label="{}" focusable="false" fill="none" stroke="currentColor" '
             'stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="{}"></use></svg>',
-            css, label, href,
+            css,
+            label,
+            href,
         )
     return format_html(
         '<svg class="icon {}" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" '
         'stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="{}"></use></svg>',
-        css, href,
+        css,
+        href,
     )
 
 
