@@ -1,3 +1,4 @@
+import json
 from datetime import timedelta
 from io import StringIO
 
@@ -193,3 +194,105 @@ class ReminderTests(AccountTestBase):
         self.assertContains(self.client.get(reverse("accounts:dashboard")), "Unread notifications")
         self.client.post(reverse("accounts:notifications_read"))
         self.assertEqual(self.user.notifications.filter(read_at__isnull=True).count(), 0)
+
+
+class AccountManagementTests(AccountTestBase):
+    def test_password_reset_end_to_end(self):
+        r = self.client.post(reverse("accounts:password_reset"), {"email": "ALICE@example.com"})
+        self.assertRedirects(r, reverse("accounts:password_reset_done"))
+        self.assertEqual(len(mail.outbox), 1)
+        body = mail.outbox[0].body
+        self.assertIn("Reset", mail.outbox[0].subject)
+        link = next(line for line in body.splitlines() if "/accounts/password/reset/" in line).strip()
+        path = link.split("testserver", 1)[1]
+        r = self.client.get(path, follow=True)  # Django swaps the token for a session marker
+        self.assertContains(r, "Choose a new password")
+        r = self.client.post(r.redirect_chain[-1][0], {"new_password1": "Brand-new-pass-77", "new_password2": "Brand-new-pass-77"})
+        self.assertRedirects(r, reverse("accounts:password_reset_complete"))
+        self.assertTrue(self.client.login(username="alice", password="Brand-new-pass-77"))
+
+    def test_password_reset_unknown_email_is_silent(self):
+        r = self.client.post(reverse("accounts:password_reset"), {"email": "nobody@example.com"})
+        self.assertRedirects(r, reverse("accounts:password_reset_done"))
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_invalid_reset_link(self):
+        r = self.client.get(reverse("accounts:password_reset_confirm", args=["MQ", "bad-token"]))
+        self.assertContains(r, "invalid or has already been used")
+
+    def test_password_change(self):
+        self.login()
+        r = self.client.post(reverse("accounts:password_change"), {
+            "old_password": "pw-12345-xyz", "new_password1": "Another-pass-55", "new_password2": "Another-pass-55"})
+        self.assertRedirects(r, reverse("accounts:settings"))
+        self.assertTrue(User.objects.get(pk=self.user.pk).check_password("Another-pass-55"))
+        self.assertEqual(self.client.get(reverse("accounts:dashboard")).status_code, 200, "session survives password change")
+
+    def test_email_change_and_uniqueness(self):
+        User.objects.create_user("bob", "bob@example.com", "pw-12345-xyz")
+        self.login()
+        r = self.client.post(reverse("accounts:settings"), {"email": "BOB@example.com"})
+        self.assertContains(r, "Another account already uses")
+        self.client.post(reverse("accounts:settings"), {"email": "alice.new@example.com"})
+        self.assertEqual(User.objects.get(pk=self.user.pk).email, "alice.new@example.com")
+
+    def test_data_export(self):
+        self.login()
+        self.client.post(reverse("venues:bookmark", args=["cvpr"]))
+        self.client.post(reverse("venues:note", args=["cvpr"]), {"note": "camera-ready tips"})
+        r = self.client.get(reverse("accounts:export_data"))
+        self.assertIn("attachment", r["Content-Disposition"])
+        data = json.loads(r.content)
+        self.assertEqual(data["account"]["username"], "alice")
+        self.assertEqual(data["bookmarks"][0]["venue"], "cvpr")
+        self.assertEqual(data["bookmarks"][0]["note"], "camera-ready tips")
+        for key in ("profile", "venue_lists", "saved_searches", "papers", "reviews", "suggestions", "notifications"):
+            self.assertIn(key, data)
+
+    def test_delete_account_requires_password_and_confirmation(self):
+        self.login()
+        r = self.client.post(reverse("accounts:delete_account"), {"password": "wrong", "confirm": "DELETE"})
+        self.assertEqual(r.status_code, 400)
+        self.assertContains(r, "Incorrect password", status_code=400)
+        r = self.client.post(reverse("accounts:delete_account"), {"password": "pw-12345-xyz", "confirm": "delete"})
+        self.assertEqual(r.status_code, 400)
+        self.assertTrue(User.objects.filter(pk=self.user.pk).exists())
+        r = self.client.post(reverse("accounts:delete_account"), {"password": "pw-12345-xyz", "confirm": "DELETE"})
+        self.assertRedirects(r, reverse("venues:list"))
+        self.assertFalse(User.objects.filter(username="alice").exists())
+        self.assertEqual(self.client.get(reverse("accounts:dashboard")).status_code, 302)
+
+    def test_set_timezone(self):
+        self.login()
+        r = self.client.post(reverse("accounts:set_timezone"), {"timezone": "Asia/Dhaka"})
+        self.assertEqual(r.json(), {"timezone": "Asia/Dhaka"})
+        self.assertEqual(User.objects.get(pk=self.user.pk).profile.timezone, "Asia/Dhaka")
+        self.assertEqual(self.client.post(reverse("accounts:set_timezone"), {"timezone": "Mars/Olympus"}).status_code, 400)
+        self.assertContains(self.client.get(reverse("venues:list")), 'data-user-tz="Asia/Dhaka"')
+
+    def test_signup_next_redirect_is_safe(self):
+        data = {"username": "carol", "email": "carol@example.com", "password1": "S3cure-pass-987", "password2": "S3cure-pass-987"}
+        r = self.client.post(reverse("accounts:signup"), {**data, "next": "https://evil.example.com/"})
+        self.assertRedirects(r, reverse("accounts:profile"))
+        self.client.logout()
+        r = self.client.post(reverse("accounts:signup"), {**data, "username": "dave", "email": "dave@example.com", "next": "/targets/"})
+        self.assertRedirects(r, "/targets/")
+
+    def test_login_page_links(self):
+        r = self.client.get(reverse("accounts:login"))
+        self.assertContains(r, reverse("accounts:password_reset"))
+        self.assertContains(r, reverse("accounts:signup"))
+
+    def test_settings_page(self):
+        self.login()
+        r = self.client.get(reverse("accounts:settings"))
+        for text in ("Export your data", "Delete account", "Change password"):
+            self.assertContains(r, text)
+
+    def test_initials(self):
+        p = self.user.profile
+        self.assertEqual(p.initials, "AL")
+        p.display_name = "Ada Lovelace"
+        self.assertEqual(p.initials, "AL")
+        p.display_name = "grace"
+        self.assertEqual(p.initials, "GR")

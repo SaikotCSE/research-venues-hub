@@ -3,6 +3,7 @@ import json
 from collections import Counter
 from datetime import date, datetime, timedelta
 
+from django.conf import settings
 from django.contrib.syndication.views import Feed
 from django.db.models import Count, Q
 from django.http import HttpResponse, JsonResponse
@@ -12,6 +13,8 @@ from django.utils import timezone
 from django.utils.feedgenerator import Atom1Feed
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET
+
+from config.ratelimit import hit, ratelimit, too_many_requests
 
 from .filters import filter_venues
 from .ics import build_multi_calendar
@@ -98,12 +101,14 @@ def insights(request):
     return render(request, "venues/insights.html", {"data": insights_data()})
 
 
+@ratelimit("api_public", methods=("GET",))
 @require_GET
 def api_insights(request):
     return JsonResponse(insights_data())
 
 
 # ----------------------------------------------------------- autocomplete (command palette)
+@ratelimit("api_public", methods=("GET",))
 @require_GET
 def api_suggest(request):
     q = request.GET.get("q", "").strip()
@@ -183,8 +188,15 @@ def token_required(view):
         user = _token_user(request)
         if not user:
             return JsonResponse({"error": "Missing or invalid bearer token."}, status=401)
+        if settings.RATELIMIT_ENABLED:
+            allowed, limit, remaining, reset = hit("api_token", f"user:{user.pk}", settings.RATELIMITS["api_token"])
+            if not allowed:
+                return too_many_requests(request, reset)
         request.api_user = user
-        return view(request, *a, **kw)
+        response = view(request, *a, **kw)
+        if settings.RATELIMIT_ENABLED:
+            response["X-RateLimit-Limit"], response["X-RateLimit-Remaining"] = str(limit), str(remaining)
+        return response
     wrapper.__name__ = view.__name__
     return wrapper
 

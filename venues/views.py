@@ -9,6 +9,8 @@ from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
 from django.views.decorators.http import require_GET, require_POST
 
+from config.ratelimit import ratelimit
+
 from .filters import facet_options, filter_venues
 from .ics import build_calendar
 from .models import Venue, VenueBookmark
@@ -216,6 +218,7 @@ def export_json(request):
 
 
 # ---------------------------------------------------------------- JSON API
+@ratelimit("api_public", methods=("GET",))
 @require_GET
 def api_venues(request):
     qs = filter_venues(request.GET, base=_base_qs())
@@ -230,12 +233,14 @@ def api_venues(request):
     })
 
 
+@ratelimit("api_public", methods=("GET",))
 @require_GET
 def api_venue_detail(request, slug):
     venue = get_object_or_404(_base_qs(), slug=slug)
     return JsonResponse(venue_to_dict(venue, detail=True))
 
 
+@ratelimit("api_public", methods=("GET",))
 @require_GET
 def api_tags(request):
     from .models import ResearchSubfield
@@ -244,6 +249,7 @@ def api_tags(request):
     return JsonResponse({"results": [{"name": t.name, "slug": t.slug, "venues": t.n} for t in tags]})
 
 
+@ratelimit("api_public", methods=("GET",))
 @require_GET
 def api_stats(request):
     now = timezone.now()
