@@ -13,6 +13,7 @@ from django.http import QueryDict
 from django.urls import reverse
 from django.utils import timezone
 
+from accounts.context_processors import site_base_url
 from accounts.models import Notification
 from tracker.models import Submission
 from venues.filters import filter_venues
@@ -57,7 +58,7 @@ class Command(BaseCommand):
                     continue
                 Notification.objects.create(user=user, kind="deadline", venue=venue, message=msg, key=key, url=venue.get_absolute_url())
                 if profile.email_reminders and user.email:
-                    send_mail(f"VenuePulse reminder: {venue.acronym}", f"{msg}\n\n{settings.SITE_URL}{venue.get_absolute_url()}\n",
+                    send_mail(f"VenuePulse reminder: {venue.acronym}", f"{msg}\n\n{site_base_url()}{venue.get_absolute_url()}\n",
                               settings.DEFAULT_FROM_EMAIL, [user.email], fail_silently=True)
                     emails += 1
             for search in user.saved_searches.filter(alert=True):

@@ -1,6 +1,6 @@
 // Copy runtime JavaScript dependencies from node_modules into Django's static tree so the
 // site never depends on a third-party CDN at runtime. Run with `npm run vendor`.
-import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -17,7 +17,10 @@ const files = [
 const rows = [];
 for (const f of files) {
   const meta = JSON.parse(readFileSync(join(root, "node_modules", f.pkg, "package.json"), "utf8"));
-  copyFileSync(join(root, "node_modules", f.pkg, f.from), join(out, f.to));
+  // Strip sourceMappingURL comments: the .map files are not vendored, and Django's manifest
+  // storage (collectstatic) fails on references to missing files.
+  const source = readFileSync(join(root, "node_modules", f.pkg, f.from), "utf8").replace(/\n?\/\/# sourceMappingURL=\S+\s*$/gm, "\n");
+  writeFileSync(join(out, f.to), source);
   rows.push(`| ${f.to} | ${f.pkg} | ${meta.version} | ${meta.license} | ${meta.homepage || ""} |`);
   console.log(`vendored ${f.pkg}@${meta.version} -> ${f.to}`);
 }

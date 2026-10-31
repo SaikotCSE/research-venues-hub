@@ -1,0 +1,90 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: pip install ruff==0.8.4
+      - run: ruff check .
+      - run: ruff format --check .
+
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.12", "3.13"]
+        database: ["sqlite", "postgres"]
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: venuepulse
+          POSTGRES_PASSWORD: venuepulse
+          POSTGRES_DB: venuepulse
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U venuepulse" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: ${{ matrix.database == 'postgres' && 'postgres://venuepulse:venuepulse@localhost:5432/venuepulse' || '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - run: pip install -r requirements-dev.txt
+      - name: Django checks
+        run: |
+          python manage.py check
+          python manage.py makemigrations --check --dry-run
+      - name: Deployment checks (production settings)
+        env:
+          DJANGO_SECRET_KEY: ci-only-${{ github.run_id }}-0f7c2a9d4e1b8f6a3c5d7e9b1a2c4e6f8a0b2d4f6
+          DJANGO_ALLOWED_HOSTS: venuepulse.example.com
+          SITE_URL: https://venuepulse.example.com
+        run: python manage.py check --deploy --fail-level WARNING --settings=config.settings.production
+      - name: Tests with coverage
+        run: |
+          coverage run manage.py test
+          coverage report --fail-under=90
+
+  assets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Compiled assets are committed and up to date
+        run: git diff --exit-code -- venues/static/
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t venuepulse:ci .
+      - name: Smoke-test the image
+        run: |
+          docker run -d --name vp -p 8000:8000 \
+            -e DJANGO_SECRET_KEY=ci-smoke-0f7c2a9d4e1b8f6a3c5d7e9b1a2c4e6f8a0b2d4f6 -e DJANGO_ALLOWED_HOSTS=localhost \
+            -e DJANGO_SECURE_SSL_REDIRECT=0 -e SEED_VENUES=1 venuepulse:ci
+          for i in $(seq 1 30); do curl -fsS -H "Host: localhost" http://localhost:8000/healthz && break; sleep 2; done
+          curl -fsS -H "Host: localhost" http://localhost:8000/api/stats/
+          docker logs vp | tail -20

@@ -1,5 +1,17 @@
 from django.conf import settings
+from django.core.exceptions import DisallowedHost
 from django.urls import reverse
+
+
+def site_base_url(request=None) -> str:
+    """Absolute site root without trailing slash: SITE_URL if configured, else the request's host."""
+    configured = getattr(settings, "SITE_URL", "").rstrip("/")
+    if configured or request is None:
+        return configured or "http://localhost:8000"
+    try:
+        return request.build_absolute_uri("/").rstrip("/")
+    except DisallowedHost:
+        return ""
 
 
 def _link(url_name, label, icon, path, exact=False):
@@ -30,7 +42,7 @@ def nav(request):
         {"url": reverse("accounts:profile"), "label": "Profile & API", "icon": "user"},
         {"url": reverse("accounts:settings"), "label": "Account settings", "icon": "settings"},
     ]
-    site_url = getattr(settings, "SITE_URL", "").rstrip("/") or request.build_absolute_uri("/").rstrip("/")
+    site_url = site_base_url(request)
     return {
         "unread_count": user.notifications.filter(read_at__isnull=True).count() if authed else 0,
         "nav_links": nav_links,

@@ -1,0 +1,38 @@
+[project]
+name = "venuepulse"
+version = "1.0.0"
+description = "Global research publication venues & conference/journal deadlines hub (Django)."
+requires-python = ">=3.12"
+
+[tool.ruff]
+line-length = 160
+target-version = "py312"
+extend-exclude = ["node_modules", "staticfiles", "*/migrations/*"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "DJ", "SIM", "C4"]
+ignore = [
+  "DJ001",   # nullable CharField is not used; rule is noisy for blank URL/Char fields
+  "SIM108",  # ternaries are not always clearer
+  "B904",    # raise ... from err is not needed for Http404 conversions
+]
+
+[tool.ruff.lint.per-file-ignores]
+"venues/seed_data/*" = ["E501"]
+"*/tests.py" = ["E501"]
+"*/tests_*.py" = ["E501"]
+"config/settings/*" = ["F405"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["config", "venues", "accounts", "tracker", "community"]
+
+[tool.coverage.run]
+source = ["config", "venues", "accounts", "tracker", "community"]
+omit = ["*/migrations/*", "*/tests.py", "*/tests_*.py", "config/wsgi.py", "config/asgi.py", "config/healthcheck.py", "config/settings/local.py", "config/settings/production.py", "manage.py"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+precision = 1
+exclude_lines = ["pragma: no cover", "if __name__ == .__main__.:"]

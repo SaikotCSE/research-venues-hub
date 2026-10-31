@@ -1,3 +1,9 @@
-Django>=5.1,<6.0
-# Optional, only when DB_ENGINE=postgres:
-# psycopg[binary]>=3.2
+# Runtime dependencies (pinned; upgrade deliberately and re-run the test-suite).
+Django==5.2.18
+asgiref==3.13.0
+sqlparse==0.6.0
+whitenoise==6.8.2          # static files with far-future caching
+dj-database-url==2.3.0     # DATABASE_URL parsing
+gunicorn==23.0.0           # WSGI server for production
+psycopg[binary]==3.2.3     # PostgreSQL driver (only used when DATABASE_URL points at Postgres)
+redis==5.2.1               # optional cache backend (REDIS_URL)

@@ -1,0 +1,16 @@
+.git
+.github
+.venv
+venv
+node_modules
+staticfiles
+db.sqlite3
+*.pyc
+__pycache__
+.env
+.env.*
+!.env.example
+.coverage
+htmlcov
+.ruff_cache
+docs/screenshots

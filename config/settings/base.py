@@ -12,7 +12,7 @@ SECRET_KEY = env("DJANGO_SECRET_KEY")
 DEBUG = False
 ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", ["localhost", "127.0.0.1"])
 CSRF_TRUSTED_ORIGINS = env_list("DJANGO_CSRF_TRUSTED_ORIGINS", [])
-SITE_URL = env("SITE_URL", "http://localhost:8000").rstrip("/")
+SITE_URL = env("SITE_URL").rstrip("/")  # absolute base for emails/feeds; falls back to the request host
 ADMIN_URL = env("DJANGO_ADMIN_URL", "admin/")
 
 INSTALLED_APPS = [
@@ -25,6 +25,7 @@ INSTALLED_APPS = [
     "django.contrib.sitemaps",
     "django.contrib.humanize",
     "django.forms",
+    "config",
     "venues",
     "accounts",
     "tracker",
@@ -164,11 +165,14 @@ LOGGING = {
     },
     "handlers": {
         "console": {"class": "logging.StreamHandler", "formatter": "standard", "filters": ["request_id"]},
+        "null": {"class": "logging.NullHandler"},
     },
     "root": {"handlers": ["console"], "level": env("LOG_LEVEL", "INFO")},
     "loggers": {
         "django": {"handlers": ["console"], "level": "WARNING", "propagate": False},
         "django.request": {"handlers": ["console"], "level": "ERROR", "propagate": False},
+        # Scanners hammer servers with bogus Host headers; the 400 response is enough.
+        "django.security.DisallowedHost": {"handlers": ["null"], "propagate": False},
         "venuepulse": {"handlers": ["console"], "level": env("LOG_LEVEL", "INFO"), "propagate": False},
     },
 }
