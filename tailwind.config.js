@@ -3,6 +3,8 @@ const colors = require("tailwindcss/colors");
 
 module.exports = {
   darkMode: "class",
+  // Classes built dynamically in templates (e.g. the milestone stepper's column count).
+  safelist: ["sm:grid-cols-2", "sm:grid-cols-3", "sm:grid-cols-4", "sm:grid-cols-5", "sm:grid-cols-6"],
   content: [
     "./{venues,accounts,tracker,community,config}/**/*.html",
     "./{venues,accounts,tracker,community,config}/**/*.py",

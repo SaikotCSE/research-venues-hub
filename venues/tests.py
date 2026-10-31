@@ -222,7 +222,7 @@ class ViewTests(TestCase):
     # ---- detail / modal / ics
     def test_detail_page(self):
         r = self.client.get(reverse("venues:detail", args=["cvpr"]))
-        self.assertContains(r, "Formatting checklist")
+        self.assertContains(r, "Submission &amp; formatting guide")
         self.assertContains(r, "Copy LaTeX / BibTeX info")
         self.assertContains(r, "@inproceedings")
         self.assertContains(r, reverse("venues:ics", args=["cvpr"]))

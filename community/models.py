@@ -42,6 +42,17 @@ class DeadlineChange(models.Model):
     class Meta:
         ordering = ["-changed_at"]
 
+    FIELD_LABELS = {
+        "abstract_deadline": "Abstract deadline",
+        "submission_deadline": "Paper deadline",
+        "notification_date": "Notification",
+        "camera_ready_date": "Camera-ready",
+    }
+
+    @property
+    def field_label(self):
+        return self.FIELD_LABELS.get(self.field, self.field)
+
     @property
     def delta_days(self):
         if self.old_value and self.new_value:

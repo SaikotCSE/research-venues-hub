@@ -1,6 +1,10 @@
+import json
+
 from django import template
+from django.core.serializers.json import DjangoJSONEncoder
 from django.templatetags.static import static
 from django.utils.html import format_html
+from django.utils.safestring import mark_safe
 
 register = template.Library()
 
@@ -70,3 +74,11 @@ def icon(name, css="h-4 w-4", label=""):
         'stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="{}"></use></svg>',
         css, href,
     )
+
+
+@register.simple_tag
+def jsonld(data):
+    """Emit a schema.org JSON-LD block with the same escaping as Django's json_script."""
+    payload = json.dumps(data, cls=DjangoJSONEncoder, ensure_ascii=False)
+    payload = payload.replace("<", "\\u003C").replace(">", "\\u003E").replace("&", "\\u0026")
+    return mark_safe(f'<script type="application/ld+json">{payload}</script>')  # noqa: S308 - escaped above

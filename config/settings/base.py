@@ -62,7 +62,7 @@ TEMPLATES = [
                 "django.contrib.messages.context_processors.messages",
                 "accounts.context_processors.nav",
             ],
-            "builtins": ["venues.templatetags.venue_extras"],
+            "builtins": ["venues.templatetags.venue_extras", "django.contrib.humanize.templatetags.humanize"],
         },
     },
 ]

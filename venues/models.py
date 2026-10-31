@@ -218,33 +218,52 @@ class Venue(models.Model):
         return items
 
     # ---- copy-paste snippets ----------------------------------------
+    # formatting_style keyword -> LaTeX preamble (review/anonymous variants where the class supports them)
+    LATEX_PREAMBLES = (
+        ("acm", "\\documentclass[sigconf,review,anonymous]{acmart}", "\\documentclass[sigconf]{acmart}"),
+        ("neurips", "\\documentclass{article}\n\\usepackage{neurips_2025}  % anonymous by default", None),
+        ("icml", "\\documentclass{article}\n\\usepackage{icml2025}  % add [accepted] for camera-ready", None),
+        ("iclr", "\\documentclass{article}\n\\usepackage{iclr2025_conference}", None),
+        ("cvpr", "\\documentclass[10pt,twocolumn,letterpaper]{article}\n\\usepackage[review]{cvpr}", None),
+        ("acl", "\\documentclass[11pt]{article}\n\\usepackage[review]{acl}", None),
+        ("aaai", "\\documentclass[letterpaper]{article}\n\\usepackage[submission]{aaai25}", None),
+        ("ijcai", "\\documentclass{article}\n\\usepackage{ijcai25}", None),
+        ("usenix", "\\documentclass[letterpaper,twocolumn,10pt]{article}\n\\usepackage{usenix-2020-09}", None),
+        ("pmlr", "\\documentclass[pmlr]{jmlr}  % PMLR proceedings class", None),
+        ("jmlr", "\\documentclass[twoside,11pt]{article}\n\\usepackage{jmlr2e}", None),
+        ("lncs", "\\documentclass[runningheads]{llncs}", None),
+        ("springer nature", "\\documentclass[sn-mathphys-num]{sn-jnl}", None),
+        ("nature", "\\documentclass[sn-nature]{sn-jnl}", None),
+        ("elsevier", "\\documentclass[review]{elsarticle}", None),
+        ("oxford", "\\documentclass[unnumsec,webpdf,contemporary,large]{oup-authoring-template}", None),
+    )
+
     @property
     def latex_snippet(self):
         style = (self.formatting_style or "").lower()
-        if "acm" in style:
-            doc = r"\documentclass[sigconf,review,anonymous]{acmart}" if "double" in self.review_process.lower() else r"\documentclass[sigconf]{acmart}"
-        elif "ieee" in style:
-            doc = r"\documentclass[conference]{IEEEtran}" if not self.is_journal else r"\documentclass[journal]{IEEEtran}"
-        elif "lncs" in style or "springer" in style:
-            doc = r"\documentclass[runningheads]{llncs}"
-        elif "elsevier" in style:
-            doc = r"\documentclass[review]{elsarticle}"
-        elif "neurips" in style:
-            doc = "\\documentclass{article}\n\\usepackage[preprint]{neurips_2025}"
-        elif "nature" in style:
-            doc = r"\documentclass[sn-nature]{sn-jnl}"
+        anonymous = self.review_process == self.ReviewProcess.DOUBLE_BLIND
+        doc = None
+        if "ieee" in style:
+            doc = "\\documentclass[journal]{IEEEtran}" if self.is_journal else "\\documentclass[conference]{IEEEtran}"
         else:
-            doc = r"\documentclass[11pt]{article}"
+            for key, review_variant, final_variant in self.LATEX_PREAMBLES:
+                if key in style:
+                    doc = review_variant if (anonymous or not final_variant) else final_variant
+                    break
+        if doc is None:
+            doc = "\\documentclass[11pt]{article}  % no official LaTeX class; follow the author guidelines"
         return (
             f"% {self.name} ({self.acronym})\n"
             f"% Formatting: {self.formatting_style or 'see call for papers'} | Limit: {self.page_limit or 'n/a'}\n"
-            f"% Review: {self.review_process}\n"
+            f"% Review: {self.review_process}{' — anonymise the submission' if anonymous else ''}\n"
             f"{doc}\n"
         )
 
     @property
     def bibtex(self):
-        key = f"{slugify(self.acronym).replace('-', '')}{timezone.now().year}"
+        cycle = self.next_cycle
+        year = cycle.year if cycle else timezone.now().year
+        key = f"{slugify(self.acronym).replace('-', '')}{year}"
         kind = "article" if self.is_journal else "inproceedings"
         field = "journal" if self.is_journal else "booktitle"
         lines = [
@@ -252,7 +271,7 @@ class Venue(models.Model):
             "  author    = {Author, A. and Coauthor, B.},",
             "  title     = {Your Paper Title},",
             f"  {field} = {{{self.name}}},",
-            f"  year      = {{{timezone.now().year}}},",
+            f"  year      = {{{year}}},",
         ]
         if self.publisher:
             lines.append(f"  publisher = {{{self.publisher}}},")

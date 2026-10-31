@@ -10,6 +10,7 @@ from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
 from django.views.decorators.http import require_GET, require_POST
 
+from accounts.context_processors import site_base_url
 from config.ratelimit import ratelimit
 
 from .filters import active_filters, facet_options, filter_venues, with_tracker_counts
@@ -18,6 +19,7 @@ from .models import DeadlineCycle, Venue, VenueBookmark
 from .ownership import bookmarks_for, get_or_create_bookmark
 from .ownership import starred_ids as _starred_ids
 from .serializers import CSV_COLUMNS, venue_to_csv_row, venue_to_dict
+from .seo import calendar_links, milestone_steps, structured_data
 from .timeline import timeline_rows
 
 TABLE_COLUMNS = [
@@ -150,12 +152,24 @@ def _detail_ctx(request, venue):
     from community.views import review_summary
 
     bm = bookmarks_for(request).filter(venue=venue).first()
-    cycles = list(venue.cycles.all())
+    cycles = sorted(venue.cycles.all(), key=lambda c: c.year, reverse=True)
+    next_cycle = venue.next_cycle
+    page_url = site_base_url(request) + venue.get_absolute_url()
     ctx = {
-        "venue": venue, "cycles": cycles, "next_cycle": venue.next_cycle,
-        "bookmark": bm, "starred": bool(bm and bm.is_starred), "note": bm.note if bm else "",
+        "venue": venue,
+        "cycles": cycles,
+        "next_cycle": next_cycle,
+        "next_deadline": venue.next_deadline,
+        "steps": milestone_steps(next_cycle),
+        "calendar_links": calendar_links(venue, next_cycle, page_url) if next_cycle and venue.next_deadline else {},
+        "structured_data": structured_data(venue, next_cycle, page_url),
+        "page_url": page_url,
+        "bookmark": bm,
+        "starred": bool(bm and bm.is_starred),
+        "note": bm.note if bm else "",
+        "tracking_count": VenueBookmark.objects.filter(venue=venue, is_starred=True).count(),
         "review_stats": review_summary(venue),
-        "reviews": venue.reviews.select_related("user")[:10],
+        "reviews": venue.reviews.select_related("user__profile")[:10],
         "changes": DeadlineChange.objects.filter(cycle__venue=venue).select_related("cycle")[:10],
         "related": related_venues(venue),
     }
@@ -163,7 +177,8 @@ def _detail_ctx(request, venue):
         mine = VenueReview.objects.filter(user=request.user, venue=venue).first()
         ctx["review_form"] = ReviewForm(instance=mine)
         ctx["my_review"] = mine
-        ctx["my_lists"] = [(l, l.venues.filter(pk=venue.pk).exists()) for l in request.user.venue_lists.all()]
+        member_of = set(venue.lists.filter(user=request.user).values_list("pk", flat=True))
+        ctx["my_lists"] = [(lst, lst.pk in member_of) for lst in request.user.venue_lists.all()]
     return ctx
 
 

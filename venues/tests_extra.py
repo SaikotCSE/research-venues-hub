@@ -267,3 +267,98 @@ class _QD(dict):
     def getlist(self, key):
         v = self.get(key)
         return [] if v is None else (list(v) if isinstance(v, (list, tuple)) else [v])
+
+
+class DetailSEOAndActionsTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        call_command("seed_venues", verbosity=0)
+
+    def test_conference_jsonld_event(self):
+        r = self.client.get(reverse("venues:detail", args=["cvpr"]))
+        html = r.content.decode()
+        block = html.split('<script type="application/ld+json">', 1)[1].split("</script>", 1)[0]
+        data = json.loads(block)
+        self.assertEqual(data["@type"], "Event")
+        self.assertEqual(data["alternateName"], "CVPR")
+        self.assertIn("startDate", data)
+        self.assertEqual(data["location"]["address"]["addressCountry"], "USA")
+        self.assertEqual(data["eventAttendanceMode"], "https://schema.org/OfflineEventAttendanceMode")
+
+    def test_journal_jsonld_periodical(self):
+        html = self.client.get(reverse("venues:detail", args=["nature"])).content.decode()
+        data = json.loads(html.split('<script type="application/ld+json">', 1)[1].split("</script>", 1)[0])
+        self.assertEqual(data["@type"], "Periodical")
+        self.assertEqual(data["issn"], "0028-0836")
+
+    def test_jsonld_is_escaped(self):
+        from django.template import Context, Template
+
+        out = Template("{% jsonld d %}").render(Context({"d": {"name": "</script><script>alert(1)</script>"}}))
+        self.assertNotIn("</script><script>", out)
+        self.assertIn("\\u003C/script\\u003E", out)
+
+    def test_meta_and_breadcrumb(self):
+        r = self.client.get(reverse("venues:detail", args=["cvpr"]))
+        self.assertContains(r, '<meta property="og:type" content="article">')
+        self.assertContains(r, 'aria-label="Breadcrumb"')
+        self.assertContains(r, "CVPR 20")  # title contains the cycle year
+
+    def test_calendar_links_and_stepper(self):
+        r = self.client.get(reverse("venues:detail", args=["cvpr"]))
+        links = r.context["calendar_links"]
+        self.assertTrue(links["google"].startswith("https://calendar.google.com/calendar/render?"))
+        self.assertIn("action=TEMPLATE", links["google"])
+        self.assertTrue(links["outlook"].startswith("https://outlook.live.com/calendar/"))
+        steps = r.context["steps"]
+        self.assertEqual([s["label"] for s in steps][:2], ["Call opens", "Paper"])
+        self.assertEqual(sum(1 for s in steps if s["state"] == "current"), 1)
+        states = [s["state"] for s in steps]
+        self.assertEqual(states, sorted(states, key=["done", "current", "upcoming"].index))
+        self.assertContains(r, 'aria-current="step"')
+
+    def test_rolling_journal_has_no_calendar_links(self):
+        r = self.client.get(reverse("venues:detail", args=["nature"]))
+        self.assertEqual(r.context["calendar_links"], {})
+        self.assertContains(r, "Rolling submissions")
+        self.assertNotContains(r, "Add to calendar")
+
+    def test_tracking_count(self):
+        from .models import Venue, VenueBookmark
+
+        for name in ("u1", "u2"):
+            VenueBookmark.objects.create(user=User.objects.create_user(name, f"{name}@x.com", "pw-12345-xyz"), venue=Venue.objects.get(slug="cvpr"))
+        self.assertContains(self.client.get(reverse("venues:detail", args=["cvpr"])), "2 researchers tracking")
+
+    def test_modal_quick_view(self):
+        r = self.client.get(reverse("venues:modal", args=["cvpr"]))
+        self.assertContains(r, "Open full page")
+        self.assertNotContains(r, "<html")
+
+
+class SnippetTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        call_command("seed_venues", verbosity=0)
+
+    def test_latex_preambles_match_official_classes(self):
+        from .models import Venue
+
+        expected = {"cvpr": "{cvpr}", "icml": "icml2025", "iclr": "iclr2025_conference", "acl": "[review]{acl}", "aaai": "aaai25",
+                    "osdi": "usenix", "kdd": "acmart", "miccai": "llncs", "media": "elsarticle", "nature": "sn-jnl", "ieee-tmi": "[journal]{IEEEtran}"}
+        for slug, needle in expected.items():
+            self.assertIn(needle, Venue.objects.get(slug=slug).latex_snippet, slug)
+
+    def test_double_blind_acm_uses_anonymous_review_mode(self):
+        from .models import Venue
+
+        self.assertIn("anonymous", Venue.objects.get(slug="kdd").latex_snippet)
+        chi = Venue.objects.get(slug="chi")  # single-blind ACM venue
+        self.assertIn("{acmart}", chi.latex_snippet)
+        self.assertNotIn("anonymous]", chi.latex_snippet)
+
+    def test_bibtex_year_follows_next_cycle(self):
+        from .models import Venue
+
+        v = Venue.objects.get(slug="cvpr")
+        self.assertIn(f"cvpr{v.next_cycle.year}", v.bibtex)
