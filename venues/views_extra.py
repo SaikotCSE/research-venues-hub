@@ -1,27 +1,21 @@
 """Recommender, planner, insights, suggest/autocomplete, token API, feeds."""
-import json
-from collections import Counter
-from datetime import date, datetime, timedelta
+from datetime import date
 
 from django.conf import settings
 from django.contrib.syndication.views import Feed
-from django.db.models import Count, Q
-from django.http import HttpResponse, JsonResponse
-from django.shortcuts import get_object_or_404, render
+from django.http import HttpResponse
+from django.shortcuts import render
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.feedgenerator import Atom1Feed
-from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET
-
-from config.ratelimit import hit, ratelimit, too_many_requests
 
 from .filters import filter_venues
 from .ics import build_multi_calendar
-from .models import DeadlineCycle, Venue, VenueBookmark
+from .insights import insights_data
+from .models import DeadlineCycle, Venue
 from .ownership import starred_ids
 from .recommend import plan, recommend
-from .serializers import venue_to_dict
 
 
 def _base():
@@ -64,63 +58,9 @@ def plan_view(request):
 
 
 # ----------------------------------------------------------- insights
-def insights_data():
-    now = timezone.now()
-    months = []
-    y, m = now.year, now.month
-    for _ in range(12):
-        months.append((y, m))
-        y, m = (y + 1, 1) if m == 12 else (y, m + 1)
-    counts = Counter()
-    for dt in DeadlineCycle.objects.filter(submission_deadline__gte=now).values_list("submission_deadline", flat=True):
-        counts[(dt.year, dt.month)] += 1
-    conf = Venue.objects.exclude(venue_type="Journal")
-    journals = Venue.objects.filter(venue_type="Journal")
-    scatter = [{"x": float(v.acceptance_rate), "y": v.h5_index, "label": v.acronym}
-               for v in conf if v.acceptance_rate is not None and v.h5_index]
-    return {
-        "deadlines_by_month": {"labels": [date(y, m, 1).strftime("%b %Y") for y, m in months], "values": [counts[k] for k in months]},
-        "by_domain": list(Venue.objects.values_list("primary_domain").annotate(n=Count("id")).order_by("-n")),
-        "by_type": list(Venue.objects.values_list("venue_type").annotate(n=Count("id")).order_by("-n")),
-        "core_distribution": [[r, conf.filter(core_rank=r).count()] for r in ("A*", "A", "B", "C", "Unranked")],
-        "quartile_distribution": [[q, journals.filter(quartile=q).count()] for q in ("Q1", "Q2", "Q3", "Q4")],
-        "by_continent": list(Venue.objects.exclude(continent="Online").values_list("continent").annotate(n=Count("id")).order_by("-n")),
-        "top_impact": [[v.acronym, float(v.impact_factor)] for v in journals.exclude(impact_factor=None).order_by("-impact_factor")[:10]],
-        "scatter": scatter,
-        "open_access_share": {"open": Venue.objects.filter(is_open_access=True).count(), "closed": Venue.objects.filter(is_open_access=False).count()},
-        "totals": {
-            "venues": Venue.objects.count(), "cycles": DeadlineCycle.objects.count(),
-            "upcoming": DeadlineCycle.objects.filter(submission_deadline__gte=now).count(),
-            "closing_30d": DeadlineCycle.objects.filter(submission_deadline__gte=now, submission_deadline__lte=now + timedelta(days=30)).count(),
-        },
-    }
-
-
 @require_GET
 def insights(request):
     return render(request, "venues/insights.html", {"data": insights_data()})
-
-
-@ratelimit("api_public", methods=("GET",))
-@require_GET
-def api_insights(request):
-    return JsonResponse(insights_data())
-
-
-# ----------------------------------------------------------- autocomplete (command palette)
-@ratelimit("api_public", methods=("GET",))
-@require_GET
-def api_suggest(request):
-    q = request.GET.get("q", "").strip()
-    if len(q) < 1:
-        return JsonResponse({"results": []})
-    matches = list(Venue.objects.filter(Q(acronym__icontains=q) | Q(name__icontains=q)))
-    ql = q.lower()
-    # exact acronym > acronym prefix > acronym substring > name match
-    matches.sort(key=lambda v: (v.acronym.lower() != ql, not v.acronym.lower().startswith(ql), ql not in v.acronym.lower(), v.acronym.lower()))
-    return JsonResponse({"results": [
-        {"acronym": v.acronym, "name": v.name, "type": v.venue_type, "url": v.get_absolute_url(), "flag": v.country_flag_emoji}
-        for v in matches[:8]]})
 
 
 # ----------------------------------------------------------- calendar & atom feeds
@@ -171,80 +111,44 @@ class DeadlineFeed(Feed):
     item_guid_is_permalink = False
 
 
-# ----------------------------------------------------------- token-authenticated API
-def _token_user(request):
-    from accounts.models import UserProfile
-
-    header = request.headers.get("Authorization", "")
-    if not header.startswith("Bearer "):
-        return None
-    prof = UserProfile.objects.select_related("user").filter(api_token=header[7:].strip()).first()
-    return prof.user if prof else None
-
-
-def token_required(view):
-    @csrf_exempt
-    def wrapper(request, *a, **kw):
-        user = _token_user(request)
-        if not user:
-            return JsonResponse({"error": "Missing or invalid bearer token."}, status=401)
-        if settings.RATELIMIT_ENABLED:
-            allowed, limit, remaining, reset = hit("api_token", f"user:{user.pk}", settings.RATELIMITS["api_token"])
-            if not allowed:
-                return too_many_requests(request, reset)
-        request.api_user = user
-        response = view(request, *a, **kw)
-        if settings.RATELIMIT_ENABLED:
-            response["X-RateLimit-Limit"], response["X-RateLimit-Remaining"] = str(limit), str(remaining)
-        return response
-    wrapper.__name__ = view.__name__
-    return wrapper
-
-
-@token_required
-def api_me(request):
-    u = request.api_user
-    return JsonResponse({"username": u.get_username(), "name": u.profile.name, "timezone": u.profile.timezone,
-                         "interests": u.profile.interest_keywords})
-
-
-@token_required
-def api_me_targets(request):
-    u = request.api_user
-    if request.method == "POST":
-        try:
-            slug = json.loads(request.body or b"{}").get("slug", "")
-        except (ValueError, AttributeError):
-            return JsonResponse({"error": "Invalid JSON body."}, status=400)
-        venue = get_object_or_404(Venue, slug=slug)
-        bm, _ = VenueBookmark.objects.get_or_create(user=u, venue=venue)
-        if not bm.is_starred:
-            bm.is_starred = True
-            bm.save(update_fields=["is_starred"])
-        return JsonResponse(venue_to_dict(venue), status=201)
-    if request.method != "GET":
-        return JsonResponse({"error": "Method not allowed."}, status=405)
-    venues = [b.venue for b in VenueBookmark.objects.filter(user=u, is_starred=True).select_related("venue").prefetch_related("venue__cycles", "venue__subfields")]
-    return JsonResponse({"count": len(venues), "results": [venue_to_dict(v) for v in venues]})
-
-
-@token_required
-def api_me_target_delete(request, slug):
-    if request.method != "DELETE":
-        return JsonResponse({"error": "Method not allowed."}, status=405)
-    n, _ = VenueBookmark.objects.filter(user=request.api_user, venue__slug=slug).delete()
-    return JsonResponse({"removed": bool(n)}, status=200 if n else 404)
-
-
-@token_required
-def api_me_submissions(request):
-    subs = request.api_user.submissions.select_related("paper", "venue")
-    return JsonResponse({"results": [
-        {"id": s.id, "paper": s.paper.title, "venue": s.venue.acronym, "status": s.status,
-         "submitted_on": s.submitted_on.isoformat() if s.submitted_on else None,
-         "deadline": s.target_deadline.isoformat() if s.target_deadline else None} for s in subs]})
+# ----------------------------------------------------------- API docs
+API_ENDPOINTS = [
+    ("Catalogue (public)", [
+        ("GET", "/api/venues/", "Paginated, filterable list of venues"),
+        ("GET", "/api/venues/{slug}/", "One venue with every deadline cycle"),
+        ("GET", "/api/tags/", "Subfield tags with venue counts"),
+        ("GET", "/api/insights/", "Aggregates behind the Insights page"),
+        ("GET", "/api/stats/", "Catalogue totals and server time"),
+        ("GET", "/api/suggest/?q=", "Autocomplete (up to 8 venues)"),
+        ("GET", "/api/openapi.json", "OpenAPI 3.1 description of this API"),
+    ]),
+    ("Your account (bearer token)", [
+        ("GET", "/api/v1/me/", "Your profile"),
+        ("GET", "/api/v1/me/targets/", "Your starred venues"),
+        ("POST", "/api/v1/me/targets/", 'Star a venue — body {"slug": "cvpr"}'),
+        ("DELETE", "/api/v1/me/targets/{slug}/", "Unstar a venue"),
+        ("GET", "/api/v1/me/submissions/", "Your tracked submissions"),
+    ]),
+    ("Feeds & exports (public)", [
+        ("GET", "/calendar.ics?…", "iCalendar feed of every upcoming milestone matching the filters"),
+        ("GET", "/feed/deadlines.atom?…", "Atom feed of the next 50 deadlines"),
+        ("GET", "/export/csv/?…", "CSV export (spreadsheet friendly)"),
+        ("GET", "/export/json/?…", "JSON export including all cycles (re-importable with import_venues)"),
+    ]),
+]
 
 
 @require_GET
 def api_docs(request):
-    return render(request, "venues/api_docs.html", {"host": request.build_absolute_uri("/").rstrip("/")})
+    from .openapi import FILTER_PARAMS
+
+    return render(request, "venues/api_docs.html", {
+        "host": request.build_absolute_uri("/").rstrip("/"),
+        "toc": [("quickstart", "Quick start"), ("try", "Try it"), ("conventions", "Conventions"), ("endpoints", "Endpoints"),
+                ("filters", "Filter parameters"), ("auth", "Authentication")],
+        "langs": [("curl", "curl"), ("python", "Python"), ("js", "JavaScript")],
+        "try_examples": ["/api/venues/?status=open&page_size=3", "/api/venues/neurips/", "/api/tags/", "/api/suggest/?q=icml", "/api/stats/"],
+        "limits": settings.RATELIMITS,
+        "endpoint_groups": API_ENDPOINTS,
+        "filter_params": FILTER_PARAMS,
+    })

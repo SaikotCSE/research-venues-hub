@@ -4,22 +4,20 @@ from collections import OrderedDict
 from datetime import date, timedelta
 
 from django.core.paginator import Paginator
-from django.db.models import Count
 from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
 from django.views.decorators.http import require_GET, require_POST
 
 from accounts.context_processors import site_base_url
-from config.ratelimit import ratelimit
 
 from .filters import active_filters, facet_options, filter_venues, with_tracker_counts
 from .ics import build_calendar
 from .models import DeadlineCycle, Venue, VenueBookmark
 from .ownership import bookmarks_for, get_or_create_bookmark
 from .ownership import starred_ids as _starred_ids
-from .serializers import CSV_COLUMNS, venue_to_csv_row, venue_to_dict
 from .seo import calendar_links, milestone_steps, structured_data
+from .serializers import CSV_COLUMNS, venue_to_csv_row, venue_to_dict
 from .timeline import timeline_rows
 
 TABLE_COLUMNS = [
@@ -264,47 +262,3 @@ def export_json(request):
     resp = JsonResponse({"count": len(data), "results": data}, json_dumps_params={"indent": 2})
     resp["Content-Disposition"] = 'attachment; filename="venuepulse-venues.json"'
     return resp
-
-
-# ---------------------------------------------------------------- JSON API
-@ratelimit("api_public", methods=("GET",))
-@require_GET
-def api_venues(request):
-    qs = filter_venues(request.GET, base=_base_qs())
-    try:
-        size = max(1, min(int(request.GET.get("page_size", 25)), 200))
-    except ValueError:
-        size = 25
-    page = Paginator(qs, size).get_page(request.GET.get("page"))
-    return JsonResponse({
-        "count": page.paginator.count, "page": page.number, "num_pages": page.paginator.num_pages,
-        "results": [venue_to_dict(v) for v in page],
-    })
-
-
-@ratelimit("api_public", methods=("GET",))
-@require_GET
-def api_venue_detail(request, slug):
-    venue = get_object_or_404(_base_qs(), slug=slug)
-    return JsonResponse(venue_to_dict(venue, detail=True))
-
-
-@ratelimit("api_public", methods=("GET",))
-@require_GET
-def api_tags(request):
-    from .models import ResearchSubfield
-
-    tags = ResearchSubfield.objects.annotate(n=Count("venues")).filter(n__gt=0).order_by("name")
-    return JsonResponse({"results": [{"name": t.name, "slug": t.slug, "venues": t.n} for t in tags]})
-
-
-@ratelimit("api_public", methods=("GET",))
-@require_GET
-def api_stats(request):
-    now = timezone.now()
-    return JsonResponse({
-        "venues": Venue.objects.count(),
-        "by_type": dict(Venue.objects.values_list("venue_type").annotate(n=Count("id"))),
-        "with_upcoming_deadline": Venue.objects.filter(cycles__submission_deadline__gte=now).distinct().count(),
-        "server_time": now.isoformat(),
-    })

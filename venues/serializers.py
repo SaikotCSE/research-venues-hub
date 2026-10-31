@@ -21,13 +21,16 @@ def cycle_to_dict(c):
         "submission_deadline": _iso(c.submission_deadline),
         "notification_date": _iso(c.notification_date),
         "camera_ready_date": _iso(c.camera_ready_date),
+        "verified_at": _iso(c.verified_at),
+        "source_url": c.source_url,
         "event_start_date": _iso(c.event_start_date),
         "event_end_date": _iso(c.event_end_date),
     }
 
 
-def venue_to_dict(v, detail=False):
+def venue_to_dict(v, detail=False, request=None):
     nd = v.next_deadline
+    path = v.get_absolute_url()
     data = {
         "name": v.name, "acronym": v.acronym, "slug": v.slug, "venue_type": v.venue_type,
         "primary_domain": v.primary_domain, "subfields": [s.name for s in v.subfields.all()],
@@ -42,6 +45,7 @@ def venue_to_dict(v, detail=False):
         "official_website": v.official_website, "submission_portal_url": v.submission_portal_url,
         "deadline_status": v.deadline_status,
         "next_deadline": {"kind": nd[0], "at": _iso(nd[1])} if nd else None,
+        "url": request.build_absolute_uri(path) if request is not None else path,
     }
     if detail:
         data.update(

@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import openapi, views, views_extra
+from . import api, openapi, views, views_extra
 
 app_name = "venues"
 
@@ -22,14 +22,14 @@ urlpatterns = [
     path("feed/deadlines.atom", views_extra.DeadlineFeed(), name="atom_feed"),
     path("api/docs/", views_extra.api_docs, name="api_docs"),
     path("api/openapi.json", openapi.openapi_schema, name="openapi"),
-    path("api/insights/", views_extra.api_insights, name="api_insights"),
-    path("api/suggest/", views_extra.api_suggest, name="api_suggest"),
-    path("api/v1/me/", views_extra.api_me, name="api_me"),
-    path("api/v1/me/targets/", views_extra.api_me_targets, name="api_me_targets"),
-    path("api/v1/me/targets/<slug:slug>/", views_extra.api_me_target_delete, name="api_me_target_delete"),
-    path("api/v1/me/submissions/", views_extra.api_me_submissions, name="api_me_submissions"),
-    path("api/venues/", views.api_venues, name="api_venues"),
-    path("api/venues/<slug:slug>/", views.api_venue_detail, name="api_venue_detail"),
-    path("api/tags/", views.api_tags, name="api_tags"),
-    path("api/stats/", views.api_stats, name="api_stats"),
+    path("api/insights/", api.insights, name="api_insights"),
+    path("api/suggest/", api.suggest, name="api_suggest"),
+    path("api/v1/me/", api.me, name="api_me"),
+    path("api/v1/me/targets/", api.me_targets, name="api_me_targets"),
+    path("api/v1/me/targets/<slug:slug>/", api.me_target_delete, name="api_me_target_delete"),
+    path("api/v1/me/submissions/", api.me_submissions, name="api_me_submissions"),
+    path("api/venues/", api.venues, name="api_venues"),
+    path("api/venues/<slug:slug>/", api.venue_detail, name="api_venue_detail"),
+    path("api/tags/", api.tags, name="api_tags"),
+    path("api/stats/", api.stats, name="api_stats"),
 ]
