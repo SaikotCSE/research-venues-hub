@@ -24,7 +24,9 @@
     <section class="card p-6" aria-labelledby="deadlines-h">
       <div class="flex flex-wrap items-center gap-2">
         <h2 id="deadlines-h" class="text-lg font-semibold">Deadlines &amp; timeline</h2>
-        {% if next_cycle and next_cycle.is_projected %}<span class="badge bg-amber-100 font-medium text-amber-900 dark:bg-amber-400/15 dark:text-amber-200">Projected dates</span>{% endif %}
+        {% if next_cycle and next_cycle.is_projected %}<span class="badge bg-amber-100 font-medium text-amber-900 dark:bg-amber-400/15 dark:text-amber-200" title="Estimated from previous editions">Projected dates</span>
+        {% elif next_cycle and next_cycle.verified_at %}<span class="badge inline-flex items-center gap-1 bg-emerald-100 font-medium text-emerald-800 dark:bg-emerald-400/15 dark:text-emerald-200">{% icon "shield-check" "h-3 w-3" %}Verified {{ next_cycle.verified_at|date:"M j, Y" }}</span>
+          {% if next_cycle.source_url %}<a class="link text-xs" href="{{ next_cycle.source_url }}" target="_blank" rel="noopener">source</a>{% endif %}{% endif %}
       </div>
       {% if venue.is_rolling_submission %}
         <p class="mt-3 flex items-center gap-2 rounded-lg border border-violet-200 bg-violet-50 p-3 text-sm text-violet-900 dark:border-violet-400/20 dark:bg-violet-400/10 dark:text-violet-200">{% icon "infinity" "h-4 w-4" %}Rolling submissions — manuscripts are considered year-round.</p>

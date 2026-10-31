@@ -64,7 +64,7 @@ class ProfileForm(StyledFormMixin, forms.ModelForm):
 
     class Meta:
         model = UserProfile
-        fields = ["display_name", "affiliation", "research_interests", "timezone", "email_reminders", "reminder_days"]
+        fields = ["display_name", "affiliation", "research_interests", "timezone", "email_reminders", "reminder_days", "weekly_digest"]
 
     def clean_reminder_days(self):
         raw = self.cleaned_data["reminder_days"]

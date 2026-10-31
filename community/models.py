@@ -92,7 +92,7 @@ class DeadlineSuggestion(models.Model):
 
     def approve(self):
         setattr(self.cycle, self.field, self.new_value)
-        self.cycle.is_projected = False
+        self.cycle.mark_verified(source_url=self.source_url, save=False)
         self.cycle.save()
         self.status = self.Status.APPROVED
         self.save(update_fields=["status"])

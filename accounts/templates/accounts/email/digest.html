@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en"><body style="margin:0;background:#f1f5f9;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#0f172a">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="padding:24px 12px"><tr><td align="center">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #e2e8f0">
+  <tr><td style="background:#4f46e5;color:#ffffff;padding:20px 24px;font-size:20px;font-weight:700">VenuePulse · weekly digest</td></tr>
+  <tr><td style="padding:24px">
+    <p style="margin:0 0 16px">Hi {{ user.profile.name }}, here’s what’s coming up for the week of {{ now|date:"M j, Y" }}.</p>
+    {% if cycles %}
+    <h2 style="font-size:16px;margin:16px 0 8px">Deadlines in the next {{ horizon }} days</h2>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:14px">
+      {% for c in cycles %}
+      <tr><td style="padding:8px 0;border-top:1px solid #e2e8f0"><a href="{{ site_url }}{{ c.venue.get_absolute_url }}" style="color:#4338ca;font-weight:600;text-decoration:none">{{ c }}</a>{% if c.is_projected %} <span style="color:#92400e;font-size:12px">(projected)</span>{% endif %}<br>
+        <span style="color:#475569">Paper due {{ c.submission_deadline|date:"D M j, H:i" }} UTC</span></td>
+        <td align="right" style="padding:8px 0;border-top:1px solid #e2e8f0;font-weight:700;color:{% if c.days_left < 7 %}#be123c{% else %}#0f172a{% endif %}">{{ c.days_left }} day{{ c.days_left|pluralize }}</td></tr>
+      {% endfor %}
+    </table>
+    {% endif %}
+    {% if submissions %}
+    <h2 style="font-size:16px;margin:24px 0 8px">Your active submissions</h2>
+    <ul style="padding-left:18px;margin:0;font-size:14px;color:#334155">
+      {% for s in submissions %}<li style="margin:4px 0">{{ s.paper.title }} → <strong>{{ s.venue.acronym }}</strong> ({{ s.get_status_display }}){% if s.days_to_deadline is not None %}, {{ s.days_to_deadline }} days to deadline{% endif %}</li>{% endfor %}
+    </ul>
+    {% endif %}
+    <p style="margin:24px 0 0"><a href="{{ site_url }}/targets/" style="background:#4f46e5;color:#ffffff;padding:10px 16px;border-radius:8px;text-decoration:none;font-weight:600">Open My Targets</a></p>
+  </td></tr>
+  <tr><td style="padding:16px 24px;background:#f8fafc;color:#64748b;font-size:12px">You receive this because weekly digests are enabled. <a href="{{ site_url }}/accounts/profile/" style="color:#4338ca">Turn them off</a>.</td></tr>
+</table></td></tr></table>
+</body></html>

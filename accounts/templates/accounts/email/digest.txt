@@ -1,0 +1,16 @@
+{% autoescape off %}Hi {{ user.profile.name }},
+
+Here is your VenuePulse summary for the week of {{ now|date:"M j, Y" }}.
+{% if cycles %}
+DEADLINES IN THE NEXT {{ horizon }} DAYS
+{% for c in cycles %}  • {{ c }} — paper due {{ c.submission_deadline|date:"D M j, H:i" }} UTC ({{ c.days_left }} day{{ c.days_left|pluralize }} left){% if c.is_projected %} [projected]{% endif %}
+    {{ site_url }}{{ c.venue.get_absolute_url }}
+{% endfor %}{% endif %}{% if submissions %}
+YOUR ACTIVE SUBMISSIONS
+{% for s in submissions %}  • {{ s.paper.title }} → {{ s.venue.acronym }} ({{ s.get_status_display }}){% if s.days_to_deadline is not None %}, {{ s.days_to_deadline }} days to deadline{% endif %}
+{% endfor %}{% endif %}
+Manage your targets: {{ site_url }}/targets/
+Turn this email off in your profile: {{ site_url }}/accounts/profile/
+
+— VenuePulse
+{% endautoescape %}

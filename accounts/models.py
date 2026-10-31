@@ -18,6 +18,8 @@ class UserProfile(models.Model):
     research_interests = models.CharField(max_length=300, blank=True, help_text="Comma-separated keywords used by the recommender.")
     timezone = models.CharField(max_length=64, default="UTC")
     email_reminders = models.BooleanField(default=True)
+    weekly_digest = models.BooleanField(default=True, help_text="Weekly email summarising upcoming deadlines for your targets.")
+    last_digest_at = models.DateTimeField(null=True, blank=True)
     reminder_days = models.CharField(max_length=40, default="14,7,1", help_text="Days before a deadline to notify, e.g. 14,7,1")
     calendar_token = models.CharField(max_length=64, unique=True, default=_token)
     api_token = models.CharField(max_length=64, unique=True, default=_token)

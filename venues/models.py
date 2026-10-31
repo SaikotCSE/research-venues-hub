@@ -301,6 +301,8 @@ class DeadlineCycle(models.Model):
     event_start_date = models.DateField(null=True, blank=True)
     event_end_date = models.DateField(null=True, blank=True)
     is_projected = models.BooleanField(default=True, help_text="Dates extrapolated from previous editions; verify on the official site.")
+    source_url = HttpsURLField(max_length=300, blank=True, help_text="Official call for papers these dates were verified against.")
+    verified_at = models.DateTimeField(null=True, blank=True, help_text="When an editor last confirmed these dates.")
 
     class Meta:
         ordering = ["-year"]
@@ -313,6 +315,14 @@ class DeadlineCycle(models.Model):
     @property
     def open_date(self):
         return self.submission_open_date
+
+    def mark_verified(self, source_url="", save=True):
+        self.is_projected = False
+        self.verified_at = timezone.now()
+        if source_url:
+            self.source_url = source_url
+        if save:
+            self.save(update_fields=["is_projected", "verified_at", "source_url"])
 
     def is_open(self, now=None):
         now = now or timezone.now()
