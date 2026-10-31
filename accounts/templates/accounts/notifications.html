@@ -10,8 +10,8 @@
 <ul class="card max-w-3xl divide-y divide-slate-100 dark:divide-slate-800">
   {% for n in items %}
   <li><a href="{{ n.url|default:'#' }}" class="flex items-start gap-3 px-5 py-3 hover:bg-slate-50 dark:hover:bg-slate-800/40 {% if not n.read_at %}bg-brand-50/60 dark:bg-brand-500/5{% endif %}">
-    <span class="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full {% if n.kind == 'deadline' %}bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300{% elif n.kind == 'search' %}bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-300{% else %}bg-brand-100 text-brand-700 dark:bg-brand-500/15 dark:text-brand-300{% endif %}">
-      {% if n.kind == 'search' %}{% icon "search" "h-4 w-4" %}{% elif n.kind == 'deadline' %}{% icon "alarm-clock" "h-4 w-4" %}{% else %}{% icon "info" "h-4 w-4" %}{% endif %}</span>
+    <span class="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full {% if n.kind == 'deadline' %}bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300{% elif n.kind == 'change' %}bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-200{% elif n.kind == 'search' %}bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-300{% else %}bg-brand-100 text-brand-700 dark:bg-brand-500/15 dark:text-brand-300{% endif %}">
+      {% if n.kind == 'search' %}{% icon "search" "h-4 w-4" %}{% elif n.kind == 'change' %}{% icon "calendar-days" "h-4 w-4" %}{% elif n.kind == 'deadline' %}{% icon "alarm-clock" "h-4 w-4" %}{% else %}{% icon "info" "h-4 w-4" %}{% endif %}</span>
     <div class="min-w-0 flex-1"><p class="text-sm {% if not n.read_at %}font-semibold{% endif %}">{{ n.message }}</p>
       <p class="muted text-xs">{{ n.get_kind_display }} · {{ n.created_at|timesince }} ago{% if not n.read_at %} · <span class="text-brand-700 dark:text-brand-300">new</span>{% endif %}</p></div>
   </a></li>

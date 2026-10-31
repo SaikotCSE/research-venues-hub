@@ -9,6 +9,7 @@
     <p class="muted mt-1 text-sm">{% if lst.description %}{{ lst.description }} · {% endif %}curated by {{ lst.user.profile.name }} · {{ venues|length }} venue{{ venues|length|pluralize }}</p>
   </div>
   <div class="ml-auto flex flex-wrap items-center gap-2">
+    {% if venues %}<a class="btn-secondary" href="{% url 'accounts:list_calendar' lst.slug %}">{% icon "calendar-plus" "h-4 w-4" %}Calendar (.ics)</a>{% endif %}
     {% if lst.is_public %}<button type="button" class="btn-secondary" x-data="sharer('{{ request.path }}', '{{ lst.name|escapejs }} — VenuePulse')" @click="share()">{% icon "share-2" "h-4 w-4" %}Share</button>{% endif %}
     {% if owner %}
     <form method="post" action="{% url 'accounts:list_update' lst.slug %}" class="flex items-center gap-2" x-data>{% csrf_token %}

@@ -90,7 +90,7 @@ test("tracker cards can be dragged to another column", async ({ page }) => {
   await expect(page.locator("section[aria-labelledby='col-writing']")).toContainText(title.slice(0, 20));
 });
 
-for (const url of ["/", "/?view=timeline", "/venue/cvpr/", "/recommend/?text=graph+learning", "/api/docs/", "/accounts/login/"]) {
+for (const url of ["/", "/?view=timeline", "/venue/cvpr/", "/recommend/?text=graph+learning", "/api/docs/", "/accounts/login/", "/about/", "/privacy/", "/embed/venue/cvpr/"]) {
   test(`no accessibility violations: ${url}`, async ({ page }) => {
     const problems = watchConsole(page);
     await page.goto(url);

@@ -97,6 +97,8 @@ class DigestAndDemoTests(TestCase):
 
     def setUp(self):
         self.user = User.objects.create_user("alice", "alice@example.com", "pw-12345-xyz")
+        self.user.profile.verified_email = self.user.email
+        self.user.profile.save()
         venue = Venue.objects.create(name="Soon Conf", acronym="SOON", slug="soon", venue_type="Conference", primary_domain="X")
         DeadlineCycle.objects.create(venue=venue, year=2031, submission_deadline=timezone.now() + timedelta(days=9))
         VenueBookmark.objects.create(user=self.user, venue=venue)
@@ -112,6 +114,13 @@ class DigestAndDemoTests(TestCase):
         self.assertEqual(len(mail.outbox), 1, "not due again within 7 days")
         run("send_digest")
         self.assertEqual(len(mail.outbox), 2, "without --if-due it always sends")
+
+    def test_digest_skips_unverified_addresses(self):
+        p = self.user.profile
+        p.verified_email = ""
+        p.save()
+        run("send_digest")
+        self.assertEqual(len(mail.outbox), 0)
 
     def test_digest_opt_out_and_nothing_to_report(self):
         p = self.user.profile

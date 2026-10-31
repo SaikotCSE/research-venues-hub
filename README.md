@@ -40,8 +40,9 @@ metrics, formatting rules, a submission tracker, reminders, calendar feeds and a
   experience reports and a data-quality panel.
 - **Recommender** (paste an abstract → ranked venues with reasons), **deadline planner** (ready date → deadlines you can
   still make, with slack), **insights** dashboards, and a **deadline radar** of date changes.
-- Command palette (<kbd>Ctrl</kbd>/<kbd>⌘</kbd>+<kbd>K</kbd>), keyboard shortcuts (<kbd>?</kbd>), light/dark/system
-  theme, mobile-friendly layout, print styles.
+- Command palette (<kbd>Ctrl</kbd>/<kbd>⌘</kbd>+<kbd>K</kbd>) with recently viewed venues, keyboard shortcuts
+  (<kbd>?</kbd>), light/dark/system theme, mobile-friendly layout, print styles, About/FAQ and privacy pages.
+- **Embeddable countdown widget** (`/embed/venue/<slug>/`, light or dark) for lab and course websites.
 
 **Track** (free account)
 - Dashboard with onboarding checklist, upcoming deadlines, active submissions, notifications and recommendations.
@@ -49,7 +50,9 @@ metrics, formatting rules, a submission tracker, reminders, calendar feeds and a
   drop and auto-generated, venue-specific checklists; papers can be resubmitted to several venues.
 - Starred venues with private notes (anonymous stars merge into your account when you sign up), shareable **venue
   lists**, **saved searches** with alerts.
-- Reminders at your chosen offsets (default 14/7/1 days), a **weekly digest email**, and a private iCal subscription.
+- Reminders at your chosen offsets (default 14/7/1 days), a **weekly digest email**, a private iCal subscription and
+  per-list calendar feeds; **notifications when a tracked deadline moves**. Emails go only to confirmed addresses
+  (signed, expiring verification links).
 - Account settings: email change, password change/reset, **JSON export of all your data**, account deletion.
 
 **Integrate**

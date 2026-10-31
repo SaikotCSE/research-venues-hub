@@ -7,9 +7,12 @@ from django.core.paginator import Paginator
 from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
+from django.utils.cache import patch_cache_control
+from django.views.decorators.clickjacking import xframe_options_exempt
 from django.views.decorators.http import require_GET, require_POST
 
 from accounts.context_processors import site_base_url
+from config.middleware import build_csp
 
 from .filters import active_filters, facet_options, filter_venues, with_tracker_counts
 from .ics import build_calendar
@@ -180,6 +183,28 @@ def _detail_ctx(request, venue):
         member_of = set(venue.lists.filter(user=request.user).values_list("pk", flat=True))
         ctx["my_lists"] = [(lst, lst.pk in member_of) for lst in request.user.venue_lists.all()]
     return ctx
+
+
+@require_GET
+@xframe_options_exempt
+def venue_embed(request, slug):
+    """Small, frameable countdown card for third-party websites (?theme=dark|light)."""
+    venue = get_object_or_404(_base_qs(), slug=slug)
+    response = render(
+        request,
+        "venues/embed.html",
+        {
+            "venue": venue,
+            "cycle": venue.next_cycle,
+            "next_deadline": venue.next_deadline,
+            "theme": request.GET.get("theme", "light"),
+            "venue_url": site_base_url(request) + venue.get_absolute_url(),
+        },
+    )
+    # Same CSP as everywhere else, except that any site may frame this page.
+    response["Content-Security-Policy"] = build_csp(request.csp_nonce).replace("frame-ancestors 'none'", "frame-ancestors *")
+    patch_cache_control(response, public=True, max_age=300)
+    return response
 
 
 @require_GET

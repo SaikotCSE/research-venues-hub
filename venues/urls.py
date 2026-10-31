@@ -9,6 +9,7 @@ urlpatterns = [
     path("venue/<slug:slug>/", views.venue_detail, name="detail"),
     path("venue/<slug:slug>/modal/", views.venue_modal, name="modal"),
     path("venue/<slug:slug>/ics/", views.venue_ics, name="ics"),
+    path("embed/venue/<slug:slug>/", views.venue_embed, name="embed"),
     path("venue/<slug:slug>/bookmark/", views.toggle_bookmark, name="bookmark"),
     path("venue/<slug:slug>/note/", views.save_note, name="note"),
     path("compare/", views.compare, name="compare"),

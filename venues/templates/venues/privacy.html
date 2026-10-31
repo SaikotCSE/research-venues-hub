@@ -1,0 +1,53 @@
+{% extends "venues/base.html" %}
+{% block title %}Privacy · VenuePulse{% endblock %}
+{% block meta_description %}What VenuePulse stores, why, and how to export or delete your data.{% endblock %}
+{% block content %}
+<article class="mx-auto max-w-3xl space-y-8 leading-relaxed">
+  <header>
+    <p class="text-sm font-semibold uppercase tracking-widest text-brand-600 dark:text-brand-400">Privacy</p>
+    <h1 class="mt-1 text-3xl font-bold tracking-tight">Your data, plainly explained</h1>
+    <p class="muted mt-3">VenuePulse collects only what it needs to work. There are no advertising or analytics trackers, and every script, font and icon is served from this site — no third-party CDNs see your visits.</p>
+  </header>
+
+  <section aria-labelledby="stored-h">
+    <h2 id="stored-h" class="text-xl font-semibold">What we store</h2>
+    <ul class="mt-3 list-disc space-y-2 pl-5">
+      <li><strong>Account:</strong> username, email address, a salted password hash, and profile details you choose to add (display name, affiliation, research interests, timezone, reminder preferences).</li>
+      <li><strong>Your work:</strong> starred venues and private notes, venue lists, saved searches, papers, submissions and checklists, experience reviews and correction suggestions you submit.</li>
+      <li><strong>Without an account:</strong> stars and notes are stored against a random identifier kept in your session cookie, and merged into your account if you sign up.</li>
+      <li><strong>Operational logs:</strong> request logs (IP address, path, timing, a request ID) kept briefly to keep the service secure and reliable.</li>
+    </ul>
+  </section>
+
+  <section aria-labelledby="cookies-h">
+    <h2 id="cookies-h" class="text-xl font-semibold">Cookies &amp; local storage</h2>
+    <div class="card mt-3 overflow-x-auto">
+      <table class="w-full text-left text-sm">
+        <thead class="bg-slate-50 text-xs uppercase tracking-wide text-slate-600 dark:bg-slate-800/80 dark:text-slate-300"><tr><th scope="col" class="px-4 py-2.5">Name</th><th scope="col" class="px-4 py-2.5">Type</th><th scope="col" class="px-4 py-2.5">Purpose</th></tr></thead>
+        <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+          <tr><td class="px-4 py-2.5 font-mono text-xs">sessionid</td><td class="px-4 py-2.5">Cookie</td><td class="px-4 py-2.5">Keeps you logged in; links anonymous stars to your browser.</td></tr>
+          <tr><td class="px-4 py-2.5 font-mono text-xs">csrftoken</td><td class="px-4 py-2.5">Cookie</td><td class="px-4 py-2.5">Protects forms against cross-site request forgery.</td></tr>
+          <tr><td class="px-4 py-2.5 font-mono text-xs">vp-theme, vp-tz</td><td class="px-4 py-2.5">Local storage</td><td class="px-4 py-2.5">Your theme and timezone choice.</td></tr>
+          <tr><td class="px-4 py-2.5 font-mono text-xs">vp-compare, vp-recent</td><td class="px-4 py-2.5">Local storage</td><td class="px-4 py-2.5">Venues in your comparison and recently viewed venues.</td></tr>
+          <tr><td class="px-4 py-2.5 font-mono text-xs">vp-dismiss-*</td><td class="px-4 py-2.5">Local storage</td><td class="px-4 py-2.5">Tips and notices you have closed.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section aria-labelledby="email-h">
+    <h2 id="email-h" class="text-xl font-semibold">Email</h2>
+    <p class="mt-2">We email you only for account security (confirmation and password resets), deadline reminders and the weekly digest — and reminders only after you confirm your address. Turn reminders and the digest off at any time on your <a class="link" href="{% url 'accounts:profile' %}">profile</a>.</p>
+  </section>
+
+  <section aria-labelledby="sharing-h">
+    <h2 id="sharing-h" class="text-xl font-semibold">What others can see</h2>
+    <p class="mt-2">Everything is private by default. Venue lists you make public, and the display name on experience reviews you post, are visible to others. Your calendar-feed and API tokens are secrets — regenerate them on your profile if they leak.</p>
+  </section>
+
+  <section aria-labelledby="control-h" class="card p-5">
+    <h2 id="control-h" class="text-xl font-semibold">You are in control</h2>
+    <p class="mt-2">From <a class="link" href="{% url 'accounts:settings' %}">account settings</a> you can download a complete JSON export of your data, change your email or password, and permanently delete your account together with everything associated with it.</p>
+  </section>
+</article>
+{% endblock %}

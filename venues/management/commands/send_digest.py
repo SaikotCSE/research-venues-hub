@@ -57,6 +57,9 @@ class Command(BaseCommand):
             users = users.exclude(profile__last_digest_at__gt=now - timedelta(days=7))
         sent = skipped = 0
         for u in users:
+            if not u.profile.email_verified:  # never email unconfirmed addresses
+                skipped += 1
+                continue
             ctx = digest_context(u, now)
             if ctx is None:
                 skipped += 1

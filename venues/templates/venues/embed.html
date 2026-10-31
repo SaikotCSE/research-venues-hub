@@ -1,0 +1,30 @@
+{% load static %}<!doctype html>
+<html lang="en" class="{% if theme == 'dark' %}dark{% endif %}">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ venue.acronym }} deadline · VenuePulse</title>
+  <meta name="robots" content="noindex">
+  <link rel="stylesheet" href="{% static 'venues/css/app.css' %}">
+  <script defer src="{% static 'venues/js/app.js' %}"></script>
+  <script defer src="{% static 'venues/vendor/alpine.min.js' %}"></script>
+</head>
+<body class="bg-white p-0 dark:bg-slate-900" x-data>
+  <a href="{{ venue_url }}" target="_blank" rel="noopener" class="block h-screen p-3 text-slate-800 no-underline dark:text-slate-100">
+    <div class="flex items-center gap-2">
+      <span class="grid h-6 w-6 place-items-center rounded-md bg-brand-600 text-white">{% icon "activity" "h-4 w-4" %}</span>
+      <span class="font-bold">{{ venue.acronym }}{% if cycle %} {{ cycle.year }}{% endif %}</span>
+      <span class="badge {{ venue|rank_class }}">{{ venue.rank_label }}</span>
+    </div>
+    {% if next_deadline %}
+    <div x-data="countdown('{{ next_deadline.1.isoformat }}')" class="mt-2">
+      <p class="muted text-xs">{{ next_deadline.0 }} deadline{% if cycle.is_projected %} (projected){% endif %}</p>
+      <p class="tnum text-2xl font-bold" :class="urgent ? 'text-rose-700 dark:text-rose-300' : ''" x-text="done ? 'Closed' : `${d}d ${h}h ${m}m ${s}s`">{{ next_deadline.1|timeuntil }}</p>
+      <p class="muted text-[11px]" x-text="aoe">{{ next_deadline.1|date:"M j, Y H:i" }} UTC</p>
+    </div>
+    {% else %}
+    <p class="muted mt-3 text-sm">Next call not announced yet.</p>
+    {% endif %}
+    <p class="muted mt-2 text-[10px]">via VenuePulse ↗</p>
+  </a>
+</body>
+</html>

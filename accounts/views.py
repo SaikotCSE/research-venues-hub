@@ -37,6 +37,7 @@ from .forms import (
     VenueListForm,
 )
 from .models import SavedSearch, UserProfile, VenueList
+from .verification import read_token, send_verification_email
 
 logger = logging.getLogger("venuepulse")
 
@@ -90,7 +91,8 @@ def signup(request):
         user = form.save()
         login(request, user, backend="django.contrib.auth.backends.ModelBackend")
         logger.info("New account registered: %s", user.pk)
-        messages.success(request, "Welcome to VenuePulse! Add a few research interests so we can recommend venues.")
+        send_verification_email(user, request)
+        messages.success(request, f"Welcome to VenuePulse! We sent a confirmation link to {user.email}. Meanwhile, add a few research interests.")
         return redirect(_safe_next(request, reverse("accounts:profile")))
     return render(request, "accounts/signup.html", {"form": form, "next": request.GET.get("next", "")})
 
@@ -180,14 +182,46 @@ def set_timezone(request):
     return JsonResponse({"timezone": zone})
 
 
+# ------------------------------------------------------------------ email verification
+@require_GET
+def verify_email(request, token):
+    parsed = read_token(token)
+    profile = UserProfile.objects.select_related("user").filter(user_id=parsed[0]).first() if parsed else None
+    if profile is None or profile.user.email.lower() != parsed[1]:
+        messages.error(request, "This confirmation link is invalid or has expired. Request a new one from your dashboard.")
+        return redirect("accounts:dashboard" if request.user.is_authenticated else "accounts:login")
+    profile.verified_email = profile.user.email
+    profile.save(update_fields=["verified_email"])
+    messages.success(request, f"Thanks — {profile.user.email} is confirmed. Reminders are on their way.")
+    return redirect("accounts:dashboard" if request.user.is_authenticated else "accounts:login")
+
+
+@login_required
+@require_POST
+@ratelimit("verify_email")
+def resend_verification(request):
+    if request.user.profile.email_verified:
+        messages.success(request, "Your email address is already confirmed.")
+    elif send_verification_email(request.user, request):
+        messages.success(request, f"We sent a new confirmation link to {request.user.email}.")
+    else:
+        messages.error(request, "Add an email address in account settings first.")
+    return redirect(_safe_next(request, reverse("accounts:dashboard")))
+
+
 # ------------------------------------------------------------------ account settings
 @login_required
 def account_settings(request):
     email_form = EmailChangeForm(request.POST or None, user=request.user, initial={"email": request.user.email})
     if request.method == "POST" and email_form.is_valid():
+        changed = email_form.cleaned_data["email"] != request.user.email.lower()
         request.user.email = email_form.cleaned_data["email"]
         request.user.save(update_fields=["email"])
-        messages.success(request, "Email address updated.")
+        if changed:
+            send_verification_email(request.user, request)
+            messages.success(request, f"Email address updated — please confirm it via the link we sent to {request.user.email}.")
+        else:
+            messages.success(request, "Email address unchanged.")
         return redirect("accounts:settings")
     return render(request, "accounts/settings.html", {"email_form": email_form, "delete_form": DeleteAccountForm(user=request.user)})
 
@@ -374,6 +408,20 @@ def list_detail(request, slug):
             "share_url": request.build_absolute_uri(request.path),
         },
     )
+
+
+@require_GET
+def list_calendar(request, slug):
+    """iCal feed of every upcoming milestone of a public list's venues (owners can also use private lists)."""
+    lst = get_object_or_404(VenueList, slug=slug)
+    if not (lst.is_public or (request.user.is_authenticated and lst.user_id == request.user.id)):
+        raise Http404
+    now = timezone.now()
+    cycles = DeadlineCycle.objects.filter(venue__in=lst.venues.all(), submission_deadline__gte=now - timedelta(days=1)).select_related("venue")
+    body = build_multi_calendar(f"VenuePulse – {lst.name}", cycles, request.get_host().split(":")[0])
+    resp = HttpResponse(body, content_type="text/calendar; charset=utf-8")
+    resp["Content-Disposition"] = f'inline; filename="{lst.slug}.ics"'
+    return resp
 
 
 @login_required

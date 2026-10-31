@@ -115,6 +115,14 @@
   </header>
 
   <main id="main" tabindex="-1" class="mx-auto w-full max-w-screen-2xl flex-1 px-4 py-6 focus:outline-none">
+    {% if needs_email_verification %}
+    <div x-data="dismissible('verify-banner')" x-show="!hidden" class="mb-4 flex flex-wrap items-center gap-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-2.5 text-sm text-amber-950 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-100" role="status">
+      {% icon "mail" "h-4 w-4 shrink-0" %}
+      <span class="flex-1">Confirm <strong>{{ user.email }}</strong> to receive deadline reminders and your weekly digest by email.</span>
+      <form method="post" action="{% url 'accounts:resend_verification' %}">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><button class="btn-secondary py-1 text-xs">Resend link</button></form>
+      <button type="button" class="opacity-70 hover:opacity-100" @click="dismiss()" aria-label="Hide this notice">{% icon "x" "h-4 w-4" %}</button>
+    </div>
+    {% endif %}
     {% if messages %}
     <div class="mb-4 space-y-2" aria-live="polite">
       {% for m in messages %}
@@ -162,10 +170,12 @@
           <li><a class="hover:underline" href="{% url 'venues:openapi' %}">OpenAPI schema</a></li>
           <li><a class="hover:underline" href="{% url 'sitemap' %}">Sitemap</a></li>
           <li><a class="hover:underline" href="{% url 'healthz' %}">Status</a></li>
+          <li><a class="hover:underline" href="{% url 'about' %}">About &amp; FAQ</a></li>
+          <li><a class="hover:underline" href="{% url 'privacy' %}">Privacy</a></li>
         </ul>
       </div>
     </div>
-    <p class="muted border-t border-slate-100 py-4 text-center text-xs dark:border-slate-800">© {% now "Y" %} VenuePulse · Built with Django, HTMX &amp; Alpine.js</p>
+    <p class="muted border-t border-slate-100 py-4 text-center text-xs dark:border-slate-800">© {% now "Y" %} VenuePulse · <a class="hover:underline" href="{% url 'about' %}">About</a> · <a class="hover:underline" href="{% url 'privacy' %}">Privacy</a> · Built with Django, HTMX &amp; Alpine.js</p>
   </footer>
 
   <!-- Compare drawer -->

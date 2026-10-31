@@ -24,6 +24,7 @@ class UserProfile(models.Model):
     calendar_token = models.CharField(max_length=64, unique=True, default=_token)
     api_token = models.CharField(max_length=64, unique=True, default=_token)
     calendar_subscribed = models.BooleanField(default=False, help_text="Set once the private calendar feed has been fetched.")
+    verified_email = models.EmailField(blank=True, help_text="Address confirmed via the verification link; changing the email invalidates it.")
 
     def __str__(self):
         return f"Profile<{self.user}>"
@@ -31,6 +32,11 @@ class UserProfile(models.Model):
     @property
     def name(self):
         return self.display_name or self.user.get_username()
+
+    @property
+    def email_verified(self) -> bool:
+        email = (self.user.email or "").strip().lower()
+        return bool(email) and self.verified_email.strip().lower() == email
 
     @property
     def initials(self):
@@ -62,6 +68,7 @@ class UserProfile(models.Model):
 class Notification(models.Model):
     class Kind(models.TextChoices):
         DEADLINE = "deadline", "Deadline reminder"
+        CHANGE = "change", "Deadline change"
         SEARCH = "search", "Saved search alert"
         SUBMISSION = "submission", "Submission update"
         SYSTEM = "system", "System"

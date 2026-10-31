@@ -17,6 +17,7 @@
 </nav>
 
 <div class="card p-6">{% include "venues/partials/venue_header.html" %}</div>
+<div x-data x-init="$store.recent.add({ acronym: '{{ venue.acronym|escapejs }}', name: '{{ venue.name|escapejs }}', url: '{{ venue.get_absolute_url|escapejs }}', flag: '{{ venue.country_flag_emoji|escapejs }}' })" hidden></div>
 
 <div class="mt-6 grid gap-6 lg:grid-cols-[1fr_22rem]">
   <div class="min-w-0 space-y-6">
@@ -175,6 +176,19 @@
       <ul class="mt-2 divide-y divide-slate-100 text-sm dark:divide-slate-800">
         {% for r in related %}<li><a href="{{ r.get_absolute_url }}" class="flex items-center gap-2 py-1.5 hover:text-brand-700 dark:hover:text-brand-300"><span class="font-semibold">{{ r.acronym }}</span><span class="muted truncate">{{ r.name }}</span><span class="badge ml-auto shrink-0 {{ r|rank_class }}">{{ r.rank_label }}</span></a></li>{% endfor %}
       </ul>
+    </section>
+    {% endif %}
+
+    {% if not venue.is_rolling_submission %}
+    <section class="card p-5" aria-labelledby="embed-h" x-data="copier">
+      <h2 id="embed-h" class="flex items-center gap-2 font-semibold">{% icon "code" "h-4 w-4 text-slate-500" %}Embed a live countdown</h2>
+      <p class="muted mt-1 text-xs">Show {{ venue.acronym }}’s next deadline on your lab or course website.</p>
+      <label for="embed-code" class="sr-only">Embed code</label>
+      <textarea id="embed-code" readonly rows="3" class="input mt-2 font-mono text-[11px]" @focus="$el.select()">&lt;iframe src="{{ page_url|cut:venue.get_absolute_url }}{% url 'venues:embed' venue.slug %}" width="340" height="150" style="border:0" title="{{ venue.acronym }} deadline countdown" loading="lazy"&gt;&lt;/iframe&gt;</textarea>
+      <div class="mt-2 flex gap-2">
+        <button type="button" class="btn-secondary flex-1" @click="copy(document.getElementById('embed-code').value)">{% icon "copy" "h-4 w-4" %}<span x-text="copied ? 'Copied!' : 'Copy code'">Copy code</span></button>
+        <a class="btn-ghost" href="{% url 'venues:embed' venue.slug %}" target="_blank" rel="noopener">Preview</a>
+      </div>
     </section>
     {% endif %}
 

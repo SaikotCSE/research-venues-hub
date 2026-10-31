@@ -26,6 +26,9 @@ User ── UserProfile (timezone, interests, reminder offsets, digest opt-in, c
 User ──< Notification · SavedSearch · VenueList (M2M Venue)
 ```
 
+When a cycle's dates change, `community/signals.py` writes a `DeadlineChange` audit row and notifies everyone who
+starred the venue (if the change still matters, i.e. it touches a future date).
+
 Deadline *status* (`open`, `upcoming`, `rolling`, `past`) and the *next deadline* are derived at read time from the
 cycles, so they are always correct relative to "now". The same rules are expressed twice — as Python properties for
 rendering and as `Exists`/`Subquery` filters in `venues/filters.py` — and the tests assert they agree.
@@ -56,6 +59,10 @@ rendering and as `Exists`/`Subquery` filters in `venues/filters.py` — and the 
 - Cache-backed fixed-window **rate limiting** for login, signup, password reset, community writes, the public API and
   the token API, with standard `X-RateLimit-*`/`Retry-After` headers.
 - Bearer API tokens and calendar tokens are random, revocable, and never shared with CORS-enabled endpoints.
+- Email verification uses Django's signing framework: tokens are bound to the user *and* the address, expire after three
+  days, and need no database table. Reminder and digest emails are sent only to confirmed addresses.
+- The embeddable widget (`/embed/venue/<slug>/`) is the only frameable page: it keeps the same CSP but relaxes
+  `frame-ancestors` and is exempt from `X-Frame-Options`.
 - CSV exports neutralise spreadsheet formula injection; JSON-LD output is escaped like `json_script`.
 
 ## Front-end build

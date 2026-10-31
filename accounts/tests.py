@@ -156,6 +156,9 @@ class ListsAndSearchTests(AccountTestBase):
 
 class ReminderTests(AccountTestBase):
     def setUp(self):
+        profile = self.user.profile
+        profile.verified_email = self.user.email
+        profile.save()
         v = Venue.objects.create(name="Soon Conf", acronym="SOON", slug="soon", venue_type="Conference", primary_domain="X")
         self.cycle = DeadlineCycle.objects.create(
             venue=v, year=2031, submission_deadline=timezone.now() + timedelta(days=5), submission_open_date=timezone.now() - timedelta(days=30)
@@ -188,9 +191,10 @@ class ReminderTests(AccountTestBase):
 
     def test_far_deadlines_ignored(self):
         self.cycle.submission_deadline = timezone.now() + timedelta(days=100)
-        self.cycle.save()
+        self.cycle.save()  # moving a tracked deadline creates a "change" notification...
         self.run_cmd()
-        self.assertEqual(Notification.objects.count(), 0)
+        self.assertEqual(Notification.objects.filter(kind="deadline").count(), 0)  # ...but no reminder is due
+        self.assertEqual(Notification.objects.filter(kind="change").count(), 1)
 
     def test_saved_search_alert(self):
         s = SavedSearch.objects.create(user=self.user, name="Everything", querystring="", alert=True, last_count=0)
@@ -309,3 +313,65 @@ class AccountManagementTests(AccountTestBase):
         self.assertEqual(p.initials, "AL")
         p.display_name = "grace"
         self.assertEqual(p.initials, "GR")
+
+
+class EmailVerificationTests(AccountTestBase):
+    def link_from(self, message):
+        return next(line for line in message.body.splitlines() if "/accounts/verify/" in line).strip().split("testserver", 1)[1]
+
+    def test_signup_sends_verification_and_link_confirms(self):
+        self.client.post(
+            reverse("accounts:signup"), {"username": "newbie", "email": "newbie@example.com", "password1": "S3cure-pass-987", "password2": "S3cure-pass-987"}
+        )
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn("Confirm your email", mail.outbox[0].subject)
+        user = User.objects.get(username="newbie")
+        self.assertFalse(user.profile.email_verified)
+        self.assertContains(self.client.get(reverse("accounts:dashboard")), "Resend link")
+        r = self.client.get(self.link_from(mail.outbox[0]), follow=True)
+        self.assertContains(r, "is confirmed")
+        user.profile.refresh_from_db()
+        self.assertTrue(user.profile.email_verified)
+        self.assertNotContains(self.client.get(reverse("accounts:dashboard")), "Resend link")
+
+    def test_tampered_or_stale_tokens_are_rejected(self):
+        from accounts.verification import make_token
+
+        token = make_token(self.user)
+        r = self.client.get(reverse("accounts:verify_email", args=[token[:-2] + "xx"]), follow=True)
+        self.assertContains(r, "invalid or has expired")
+        self.user.email = "changed@example.com"
+        self.user.save()
+        r = self.client.get(reverse("accounts:verify_email", args=[token]), follow=True)  # token bound to the old address
+        self.assertContains(r, "invalid or has expired")
+        self.assertFalse(User.objects.get(pk=self.user.pk).profile.email_verified)
+
+    def test_email_change_invalidates_verification(self):
+        p = self.user.profile
+        p.verified_email = self.user.email
+        p.save()
+        self.login()
+        self.client.post(reverse("accounts:settings"), {"email": "alice2@example.com"})
+        self.assertFalse(User.objects.get(pk=self.user.pk).profile.email_verified)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn("alice2@example.com", mail.outbox[0].to)
+
+    def test_resend_is_rate_limited(self):
+        from django.core.cache import cache
+        from django.test import override_settings
+
+        cache.clear()
+        self.login()
+        with override_settings(RATELIMIT_ENABLED=True):
+            for _ in range(3):
+                self.assertEqual(self.client.post(reverse("accounts:resend_verification")).status_code, 302)
+            self.assertEqual(self.client.post(reverse("accounts:resend_verification")).status_code, 429)
+        self.assertEqual(len(mail.outbox), 3)
+
+    def test_unverified_users_get_in_app_reminders_but_no_email(self):
+        venue = Venue.objects.create(name="Soon", acronym="SOON2", slug="soon2", venue_type="Conference", primary_domain="X")
+        DeadlineCycle.objects.create(venue=venue, year=2032, submission_deadline=timezone.now() + timedelta(days=3))
+        VenueBookmark.objects.create(user=self.user, venue=venue)
+        call_command("send_reminders", stdout=StringIO())
+        self.assertEqual(self.user.notifications.count(), 1)
+        self.assertEqual(len(mail.outbox), 0)

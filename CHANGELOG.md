@@ -27,6 +27,10 @@ All notable changes to this project are documented here. Dates are in UTC.
   pre-commit, ruff, coverage, GitHub Actions (lint, tests on SQLite & PostgreSQL, deploy checks, asset freshness,
   Docker smoke test, Playwright e2e + axe).
 
+- **Round 2:** email verification (signed, address-bound, expiring links; reminders/digests only to confirmed
+  addresses; rate-limited resend), notifications to trackers when a deadline moves, About/FAQ and Privacy pages,
+  recently viewed venues in the command palette, embeddable countdown widget, calendar feeds for venue lists.
+
 ### Changed
 - Seeding projects one upcoming edition for every dated venue and never overwrites editor-verified cycles.
 - Bookmarks belong to a user or an anonymous browser key and merge on login.

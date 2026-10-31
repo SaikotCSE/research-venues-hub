@@ -128,6 +128,18 @@
 
     Alpine.store('shortcuts', { open: false });
 
+    // Recently viewed venues (shown first in the command palette).
+    Alpine.store('recent', {
+      items: [],
+      init() {
+        try { this.items = JSON.parse(safe.get('vp-recent') || '[]').filter((i) => i && i.url); } catch (e) { this.items = []; }
+      },
+      add(venue) {
+        this.items = [venue, ...this.items.filter((i) => i.url !== venue.url)].slice(0, 6);
+        safe.set('vp-recent', JSON.stringify(this.items));
+      },
+    });
+
     Alpine.store('compare', {
       items: [], open: false, max: 4,
       init() {
@@ -261,8 +273,12 @@
 
     Alpine.data('palette', () => ({
       open: false, q: '', results: [], idx: 0, seq: 0,
+      defaults() {
+        const recent = Alpine.store('recent').items.map((r) => ({ ...r, type: 'Recent' }));
+        return [...recent, ...PAGES];
+      },
       show() {
-        this.open = true; this.q = ''; this.results = PAGES; this.idx = 0;
+        this.open = true; this.q = ''; this.results = this.defaults(); this.idx = 0;
         this.$nextTick(() => this.$refs.input.focus());
       },
       move(d) { this.idx = Math.max(0, Math.min(this.results.length - 1, this.idx + d)); },
@@ -281,7 +297,7 @@
         const q = this.q.trim().toLowerCase();
         const seq = ++this.seq;
         const pages = PAGES.filter((p) => !q || (p.acronym + ' ' + p.name).toLowerCase().includes(q));
-        if (!q) { this.results = pages; this.idx = 0; return; }
+        if (!q) { this.results = this.defaults(); this.idx = 0; return; }
         try {
           const res = await fetch('/api/suggest/?q=' + encodeURIComponent(q), { headers: { Accept: 'application/json' } });
           const venues = res.ok ? (await res.json()).results : [];

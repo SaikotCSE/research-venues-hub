@@ -83,3 +83,39 @@ class CommunityTests(TestCase):
 
         self.assertIn(DeadlineSuggestion, admin.site._registry)
         self.assertIn("approve", admin.site._registry[DeadlineSuggestion].actions or ["approve"])
+
+
+class ChangeNotificationTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        call_command("seed_venues", verbosity=0)
+
+    def test_trackers_are_notified_of_extensions(self):
+        from accounts.models import Notification
+        from venues.models import VenueBookmark
+
+        venue = Venue.objects.get(slug="neurips")
+        fan = User.objects.create_user("fan", "fan@example.com", "pw-12345-xyz")
+        other = User.objects.create_user("other", "other@example.com", "pw-12345-xyz")
+        VenueBookmark.objects.create(user=fan, venue=venue)
+        VenueBookmark.objects.create(user=other, venue=venue, is_starred=False)  # note only, not starred
+        cycle = DeadlineCycle.objects.get(pk=venue.next_cycle.pk)
+        cycle.submission_deadline += timedelta(days=7)
+        cycle.save()
+        notes = Notification.objects.filter(kind="change")
+        self.assertEqual([n.user.username for n in notes], ["fan"])
+        self.assertIn("paper deadline extended", notes[0].message)
+        self.assertIn("(+7 days)", notes[0].message)
+        self.assertEqual(notes[0].url, "/venue/neurips/")
+
+    def test_past_corrections_do_not_notify(self):
+        from accounts.models import Notification
+        from venues.models import VenueBookmark
+
+        venue = Venue.objects.get(slug="cvpr")
+        VenueBookmark.objects.create(user=User.objects.create_user("x", "x@example.com", "pw-12345-xyz"), venue=venue)
+        past = venue.cycles.filter(submission_deadline__lt=timezone.now()).order_by("submission_deadline").first()
+        past.submission_deadline -= timedelta(days=1)
+        past.save()
+        self.assertTrue(DeadlineChange.objects.filter(cycle=past).exists(), "still audited")
+        self.assertFalse(Notification.objects.filter(kind="change").exists())

@@ -1,0 +1,10 @@
+{% autoescape off %}Hi {{ user.profile.name }},
+
+Please confirm that {{ user.email }} is your email address so VenuePulse can send you deadline reminders and your weekly digest:
+
+{{ link }}
+
+The link is valid for {{ days }} days. If you didn't create a VenuePulse account, you can ignore this email.
+
+— The VenuePulse team
+{% endautoescape %}

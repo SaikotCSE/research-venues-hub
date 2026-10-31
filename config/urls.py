@@ -17,6 +17,8 @@ urlpatterns = [
     path("robots.txt", views.robots_txt, name="robots"),
     path("manifest.webmanifest", views.manifest, name="manifest"),
     path("favicon.ico", views.favicon, name="favicon"),
+    path("about/", views.about, name="about"),
+    path("privacy/", views.privacy, name="privacy"),
     path("sitemap.xml", cache_page(60 * 60)(sitemap), {"sitemaps": SITEMAPS}, name="sitemap"),
     path("accounts/", include("accounts.urls")),
     path("tracker/", include("tracker.urls")),

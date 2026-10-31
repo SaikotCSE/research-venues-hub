@@ -21,6 +21,9 @@ urlpatterns = [
         name="password_reset_complete",
     ),
     path("password/change/", views.PasswordChangeView.as_view(), name="password_change"),
+    # email verification
+    path("verify/resend/", views.resend_verification, name="resend_verification"),
+    path("verify/<str:token>/", views.verify_email, name="verify_email"),
     # dashboard, profile & settings
     path("", views.dashboard, name="dashboard"),
     path("profile/", views.profile, name="profile"),
@@ -39,6 +42,7 @@ urlpatterns = [
     path("lists/new/", views.list_create, name="list_create"),
     path("lists/<slug:slug>/", views.list_detail, name="list_detail"),
     path("lists/<slug:slug>/update/", views.list_update, name="list_update"),
+    path("lists/<slug:slug>/calendar.ics", views.list_calendar, name="list_calendar"),
     path("lists/<slug:slug>/toggle/<slug:venue_slug>/", views.list_toggle_venue, name="list_toggle"),
     # private calendar feed
     path("calendar/<str:token>.ics", views.calendar_feed, name="calendar_feed"),

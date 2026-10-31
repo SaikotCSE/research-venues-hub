@@ -7,7 +7,7 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from .models import VenueBookmark
+from .models import Venue, VenueBookmark
 from .recommend import plan, recommend, tokens
 
 
@@ -406,3 +406,51 @@ class CompareTests(TestCase):
     def test_drawer_variant_uses_alpine_remove(self):
         r = self.client.get(reverse("venues:compare"), {"s": ["cvpr", "iccv"]}, HTTP_HX_REQUEST="true")
         self.assertContains(r, "$store.compare.toggle('cvpr'")
+
+
+class Round2FeatureTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        call_command("seed_venues", verbosity=0)
+
+    def test_embed_widget_is_frameable_with_csp(self):
+        r = self.client.get(reverse("venues:embed", args=["cvpr"]), {"theme": "dark"})
+        self.assertEqual(r.status_code, 200)
+        self.assertNotIn("X-Frame-Options", r)
+        self.assertIn("frame-ancestors *", r["Content-Security-Policy"])
+        self.assertIn("script-src 'self'", r["Content-Security-Policy"])
+        self.assertContains(r, 'class="dark"')
+        self.assertContains(r, "http://testserver/venue/cvpr/")
+        self.assertIn("max-age=300", r["Cache-Control"])
+        self.assertEqual(self.client.get(reverse("venues:detail", args=["cvpr"]))["X-Frame-Options"], "DENY")
+
+    def test_detail_page_offers_embed_code_and_records_recent(self):
+        r = self.client.get(reverse("venues:detail", args=["cvpr"]))
+        self.assertContains(r, "Embed a live countdown")
+        self.assertContains(r, "/embed/venue/cvpr/")
+        self.assertContains(r, "$store.recent.add(")
+
+    def test_about_and_privacy_pages(self):
+        about = self.client.get(reverse("about"))
+        self.assertContains(about, "Anywhere on Earth")
+        self.assertContains(about, "CORE rank")
+        privacy = self.client.get(reverse("privacy"))
+        self.assertContains(privacy, "sessionid")
+        self.assertContains(privacy, reverse("accounts:settings"))
+
+    def test_list_calendar_feed_visibility(self):
+        from accounts.models import VenueList
+
+        owner = User.objects.create_user("owner", "o@example.com", "pw-12345-xyz")
+        lst = VenueList.objects.create(user=owner, name="Targets", is_public=False)
+        lst.venues.set(Venue.objects.filter(slug__in=["cvpr", "icml"]))
+        url = reverse("accounts:list_calendar", args=[lst.slug])
+        self.assertEqual(self.client.get(url).status_code, 404)
+        self.client.force_login(owner)
+        r = self.client.get(url)
+        self.assertEqual(r["Content-Type"], "text/calendar; charset=utf-8")
+        self.assertIn("SUMMARY:CVPR", r.content.decode())
+        self.client.logout()
+        lst.is_public = True
+        lst.save()
+        self.assertEqual(self.client.get(url).status_code, 200)

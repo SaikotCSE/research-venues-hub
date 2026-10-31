@@ -58,7 +58,7 @@ class Command(BaseCommand):
                     self.stdout.write(f"[dry-run] {user}: {msg}")
                     continue
                 Notification.objects.create(user=user, kind="deadline", venue=venue, message=msg, key=key, url=venue.get_absolute_url())
-                if profile.email_reminders and user.email:
+                if profile.email_reminders and profile.email_verified:
                     send_mail(
                         f"VenuePulse reminder: {venue.acronym}",
                         f"{msg}\n\n{site_base_url()}{venue.get_absolute_url()}\n",

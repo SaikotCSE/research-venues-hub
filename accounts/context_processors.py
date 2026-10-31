@@ -44,6 +44,7 @@ def nav(request):
     ]
     site_url = site_base_url(request)
     return {
+        "needs_email_verification": authed and bool(user.email) and not user.profile.email_verified,
         "unread_count": user.notifications.filter(read_at__isnull=True).count() if authed else 0,
         "nav_links": nav_links,
         "user_links": user_links,

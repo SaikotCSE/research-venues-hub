@@ -154,6 +154,7 @@ RATELIMITS = {
     "login": "10/m",
     "signup": "5/h",
     "password_reset": "5/h",
+    "verify_email": "3/h",
     "community_write": "30/h",
     "api_public": "300/m",
     "api_token": "120/m",

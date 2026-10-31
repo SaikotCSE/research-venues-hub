@@ -60,6 +60,7 @@ class Command(BaseCommand):
         profile.display_name = "Dr. Demo Researcher"
         profile.affiliation = "VenuePulse University"
         profile.research_interests = "medical image segmentation, self-supervised learning, large language models, graph learning"
+        profile.verified_email = user.email
         profile.save()
 
         venues = {v.slug: v for v in Venue.objects.prefetch_related("cycles")}
