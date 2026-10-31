@@ -1,0 +1,26 @@
+{% extends "venues/base.html" %}
+{% block title %}My Target Venues · VenuePulse{% endblock %}
+{% block content %}
+<div class="mb-4 flex flex-wrap items-center gap-3">
+  <h1 class="text-2xl font-bold">My Target Venues</h1>
+  <span class="text-sm text-slate-500">{{ venues|length }} saved</span>
+  <span class="ml-auto flex gap-3 text-sm">
+    <a class="underline" href="{% url 'venues:export_csv' %}?scope=targets">Export CSV</a>
+    <a class="underline" href="{% url 'venues:export_json' %}?scope=targets">Export JSON</a>
+  </span>
+</div>
+{% if venues %}
+<div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+  {% for venue in venues %}
+  <div>{% include "venues/partials/venue_card.html" %}
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="rounded-xl border border-dashed border-slate-300 p-10 text-center text-slate-500 dark:border-slate-700">
+  <i data-lucide="star" class="mx-auto mb-2 h-8 w-8"></i>
+  You haven't saved any venues yet. Click the star on any venue to add it here.
+  <div class="mt-3"><a class="text-brand-600 underline dark:text-brand-500" href="{% url 'venues:list' %}">Explore venues</a></div>
+</div>
+{% endif %}
+{% endblock %}

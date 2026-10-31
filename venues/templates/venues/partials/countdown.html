@@ -1,0 +1,17 @@
+{# Live countdown. Usage: {% include "venues/partials/countdown.html" with at=dt kind="Paper" %} #}
+<div x-data="countdown('{{ at.isoformat }}')" class="rounded-lg border border-slate-200 bg-slate-50 p-2.5 dark:border-slate-700 dark:bg-slate-800/60">
+  <div class="mb-1 flex items-center justify-between text-xs font-medium text-slate-500 dark:text-slate-400">
+    <span>{{ kind }} deadline</span>
+    <span x-show="done" x-cloak class="text-rose-600 dark:text-rose-400">Closed</span>
+  </div>
+  <div class="tnum grid grid-cols-4 gap-1 text-center" :class="urgent ? 'text-rose-600 dark:text-rose-400' : 'text-slate-900 dark:text-slate-100'">
+    <div><div class="text-lg font-bold leading-none" x-text="d">–</div><div class="text-[10px] uppercase text-slate-500">days</div></div>
+    <div><div class="text-lg font-bold leading-none" x-text="h">–</div><div class="text-[10px] uppercase text-slate-500">hrs</div></div>
+    <div><div class="text-lg font-bold leading-none" x-text="m">–</div><div class="text-[10px] uppercase text-slate-500">min</div></div>
+    <div><div class="text-lg font-bold leading-none" x-text="s">–</div><div class="text-[10px] uppercase text-slate-500">sec</div></div>
+  </div>
+  <div class="mt-1.5 space-y-0.5 text-[11px] text-slate-500 dark:text-slate-400">
+    <div>Local: <span x-text="local">{{ at|date:"M j, Y H:i" }} UTC</span></div>
+    <div>AoE (UTC−12): <span x-text="aoe"></span></div>
+  </div>
+</div>

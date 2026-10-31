@@ -1,0 +1,31 @@
+{% load venue_extras %}
+{% if not venues %}
+  <p class="p-6 text-center text-slate-500">Tick “Compare” on up to {{ max_compare }} venues to see them side by side.</p>
+{% else %}
+<div class="overflow-x-auto">
+<table class="w-full min-w-[640px] text-left text-sm">
+  <thead><tr class="border-b border-slate-200 dark:border-slate-700"><th class="w-40 p-2"></th>
+    {% for v in venues %}<th class="p-2 align-top"><a class="text-base font-bold hover:text-brand-600" href="{{ v.get_absolute_url }}">{{ v.acronym }}</a>
+      <div class="text-xs font-normal text-slate-500">{{ v.name }}</div></th>{% endfor %}</tr></thead>
+  <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+    <tr><th class="p-2 font-medium text-slate-500">Type</th>{% for v in venues %}<td class="p-2">{{ v.venue_type }}</td>{% endfor %}</tr>
+    <tr><th class="p-2 font-medium text-slate-500">Domain</th>{% for v in venues %}<td class="p-2">{{ v.primary_domain }}</td>{% endfor %}</tr>
+    <tr><th class="p-2 font-medium text-slate-500">CORE rank</th>{% for v in venues %}<td class="p-2">{{ v.core_rank }}</td>{% endfor %}</tr>
+    <tr><th class="p-2 font-medium text-slate-500">CCF rank</th>{% for v in venues %}<td class="p-2">{{ v.ccf_rank }}</td>{% endfor %}</tr>
+    <tr><th class="p-2 font-medium text-slate-500">h5-index</th>{% for v in venues %}<td class="p-2">{{ v.h5_index|default:"—" }}</td>{% endfor %}</tr>
+    <tr><th class="p-2 font-medium text-slate-500">Impact factor</th>{% for v in venues %}<td class="p-2">{{ v.impact_factor|default:"—" }}</td>{% endfor %}</tr>
+    <tr><th class="p-2 font-medium text-slate-500">Quartile</th>{% for v in venues %}<td class="p-2">{{ v.quartile|default:"—" }}</td>{% endfor %}</tr>
+    <tr><th class="p-2 font-medium text-slate-500">Acceptance rate</th>{% for v in venues %}<td class="p-2">{% if v.acceptance_rate %}{{ v.acceptance_rate|floatformat:1 }}%{% else %}—{% endif %}</td>{% endfor %}</tr>
+    <tr><th class="p-2 font-medium text-slate-500">Page limit</th>{% for v in venues %}<td class="p-2">{{ v.page_limit|default:"—" }}</td>{% endfor %}</tr>
+    <tr><th class="p-2 font-medium text-slate-500">Formatting</th>{% for v in venues %}<td class="p-2">{{ v.formatting_style|default:"—" }}</td>{% endfor %}</tr>
+    <tr><th class="p-2 font-medium text-slate-500">Review model</th>{% for v in venues %}<td class="p-2">{{ v.review_process }}</td>{% endfor %}</tr>
+    <tr><th class="p-2 font-medium text-slate-500">Open access</th>{% for v in venues %}<td class="p-2">{{ v.is_open_access|yesno:"Yes,No" }}{% if v.apc_cost_usd %} (${{ v.apc_cost_usd }}){% endif %}</td>{% endfor %}</tr>
+    <tr><th class="p-2 font-medium text-slate-500">Location</th>{% for v in venues %}<td class="p-2">{{ v.country_flag_emoji }} {{ v.city }}{% if v.city %}, {% endif %}{{ v.country }}</td>{% endfor %}</tr>
+    <tr><th class="p-2 font-medium text-slate-500">Abstract deadline</th>{% for v in venues %}<td class="p-2 tnum">{% with c=v.next_cycle %}{% if c.abstract_deadline %}{{ c.abstract_deadline|date:"M j, Y H:i" }} UTC{% else %}—{% endif %}{% endwith %}</td>{% endfor %}</tr>
+    <tr><th class="p-2 font-medium text-slate-500">Paper deadline</th>{% for v in venues %}<td class="p-2 tnum">{% with c=v.next_cycle %}{% if c %}{{ c.submission_deadline|date:"M j, Y H:i" }} UTC{% elif v.is_rolling_submission %}Rolling{% else %}—{% endif %}{% endwith %}</td>{% endfor %}</tr>
+    <tr><th class="p-2 font-medium text-slate-500">Notification</th>{% for v in venues %}<td class="p-2 tnum">{% with c=v.next_cycle %}{% if c.notification_date %}{{ c.notification_date|date:"M j, Y" }}{% else %}—{% endif %}{% endwith %}</td>{% endfor %}</tr>
+    <tr><th class="p-2 font-medium text-slate-500">Event</th>{% for v in venues %}<td class="p-2 tnum">{% with c=v.next_cycle %}{% if c.event_start_date %}{{ c.event_start_date|date:"M j" }} – {{ c.event_end_date|date:"M j, Y" }}{% else %}—{% endif %}{% endwith %}</td>{% endfor %}</tr>
+  </tbody>
+</table>
+</div>
+{% endif %}

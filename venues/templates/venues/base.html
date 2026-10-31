@@ -1,0 +1,93 @@
+{% load static %}<!doctype html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}VenuePulse · Research Venues &amp; Deadlines Hub{% endblock %}</title>
+  <meta name="description" content="Search, filter, compare and track conference and journal deadlines worldwide, with live countdowns in your timezone and AoE.">
+  <script>
+    try {
+      var t = localStorage.getItem('vp-theme');
+      if (t === 'dark' || (!t && window.matchMedia('(prefers-color-scheme: dark)').matches)) document.documentElement.classList.add('dark');
+    } catch (e) {}
+  </script>
+  <script src="https://cdn.tailwindcss.com/3.4.16"></script>
+  <script>
+    tailwind.config = { darkMode: 'class', theme: { extend: { colors: { brand: { 50:'#eef2ff',100:'#e0e7ff',500:'#6366f1',600:'#4f46e5',700:'#4338ca' } } } } };
+  </script>
+  <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
+  <script src="https://unpkg.com/htmx.org@2.0.4/dist/htmx.min.js"></script>
+  <script defer src="{% static 'venues/app.js' %}"></script>
+  <script defer src="https://unpkg.com/alpinejs@3.14.8/dist/cdn.min.js"></script>
+  <style>
+    [x-cloak]{display:none!important}
+    .htmx-request #spinner,#spinner.htmx-request{opacity:1}
+    #results{transition:opacity .15s}
+    #results.htmx-request{opacity:.55}
+    .tnum{font-variant-numeric:tabular-nums}
+  </style>
+</head>
+<body class="min-h-screen bg-slate-50 text-slate-800 dark:bg-slate-950 dark:text-slate-200 antialiased"
+      hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}' x-data>
+  <header class="sticky top-0 z-30 border-b border-slate-200 bg-white/80 backdrop-blur dark:border-slate-800 dark:bg-slate-900/80">
+    <div class="mx-auto flex max-w-screen-2xl items-center gap-3 px-4 py-3">
+      <a href="{% url 'venues:list' %}" class="flex items-center gap-2 font-bold tracking-tight">
+        <span class="grid h-8 w-8 place-items-center rounded-lg bg-brand-600 text-white"><i data-lucide="activity" class="h-5 w-5"></i></span>
+        <span class="text-lg">Venue<span class="text-brand-600 dark:text-brand-500">Pulse</span></span>
+      </a>
+      <nav class="ml-4 hidden items-center gap-1 text-sm sm:flex">
+        <a href="{% url 'venues:list' %}" class="rounded-md px-3 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-800">Explore</a>
+        <a href="{% url 'venues:targets' %}" class="rounded-md px-3 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-800">My Target Venues</a>
+        <a href="{% url 'venues:api_venues' %}" class="rounded-md px-3 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-800">API</a>
+      </nav>
+      <div class="ml-auto flex items-center gap-2">
+        <button type="button" @click="$store.compare.show()" class="relative inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-800">
+          <i data-lucide="columns-3" class="h-4 w-4"></i><span class="hidden sm:inline">Compare</span>
+          <span x-show="$store.compare.items.length" x-cloak class="rounded-full bg-brand-600 px-1.5 text-xs text-white" x-text="$store.compare.items.length"></span>
+        </button>
+        <a href="{% url 'venues:targets' %}" class="inline-flex items-center rounded-lg border border-slate-300 p-2 hover:bg-slate-100 sm:hidden dark:border-slate-700 dark:hover:bg-slate-800" aria-label="My target venues"><i data-lucide="star" class="h-4 w-4"></i></a>
+        <button type="button" @click="$store.theme.toggle(); $nextTick(() => lucide.createIcons())" aria-label="Toggle dark mode" class="rounded-lg border border-slate-300 p-2 hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-800">
+          <span x-show="!$store.theme.dark"><i data-lucide="moon" class="h-4 w-4"></i></span>
+          <span x-show="$store.theme.dark" x-cloak><i data-lucide="sun" class="h-4 w-4"></i></span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="mx-auto max-w-screen-2xl px-4 py-6">
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="mx-auto max-w-screen-2xl px-4 pb-10 pt-4 text-xs text-slate-500 dark:text-slate-400">
+    Metrics (ranks, h5, impact factors, acceptance rates) are approximate; deadlines marked <em>Projected</em> are extrapolated from previous editions.
+    Always confirm on the official venue website before submitting.
+    · <a class="underline" href="{% url 'venues:export_csv' %}">CSV</a> · <a class="underline" href="{% url 'venues:export_json' %}">JSON</a>
+  </footer>
+
+  <!-- Compare drawer -->
+  <div x-data x-show="$store.compare.open" x-cloak class="fixed inset-0 z-40" @keydown.escape.window="$store.compare.open = false">
+    <div class="absolute inset-0 bg-slate-900/50" @click="$store.compare.open = false"></div>
+    <aside class="absolute inset-x-0 bottom-0 flex max-h-[85vh] flex-col rounded-t-2xl bg-white shadow-2xl dark:bg-slate-900"
+           x-transition:enter="transition ease-out duration-200" x-transition:enter-start="translate-y-full" x-transition:enter-end="translate-y-0">
+      <div class="flex items-center gap-3 border-b border-slate-200 px-4 py-3 dark:border-slate-800">
+        <h2 class="font-semibold">Compare venues <span class="text-sm font-normal text-slate-500" x-text="`(${$store.compare.items.length}/${$store.compare.max})`"></span></h2>
+        <button type="button" class="ml-auto text-sm text-slate-500 hover:underline" @click="$store.compare.clear()">Clear all</button>
+        <button type="button" aria-label="Close" class="rounded-md p-1 hover:bg-slate-100 dark:hover:bg-slate-800" @click="$store.compare.open = false"><i data-lucide="x" class="h-5 w-5"></i></button>
+      </div>
+      <div id="compare-body" class="overflow-auto p-4"></div>
+    </aside>
+  </div>
+
+  <!-- Quick-view modal -->
+  <div x-data="{ open: false }" x-show="open" x-cloak @open-modal.window="open = true" @keydown.escape.window="open = false" class="fixed inset-0 z-50 grid place-items-center p-4">
+    <div class="absolute inset-0 bg-slate-900/60" @click="open = false"></div>
+    <div class="relative max-h-[90vh] w-full max-w-3xl overflow-auto rounded-2xl bg-white p-5 shadow-2xl dark:bg-slate-900">
+      <button type="button" aria-label="Close" class="absolute right-3 top-3 rounded-md p-1 hover:bg-slate-100 dark:hover:bg-slate-800" @click="open = false"><i data-lucide="x" class="h-5 w-5"></i></button>
+      <div id="modal-body"><p class="p-6 text-center text-slate-500">Loading…</p></div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div x-data x-show="$store.toast.visible" x-cloak x-transition class="fixed bottom-5 left-1/2 z-[60] -translate-x-1/2 rounded-lg bg-slate-900 px-4 py-2 text-sm text-white shadow-lg dark:bg-slate-100 dark:text-slate-900" x-text="$store.toast.msg"></div>
+</body>
+</html>

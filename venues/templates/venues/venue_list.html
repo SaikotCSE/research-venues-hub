@@ -1,0 +1,99 @@
+{% extends "venues/base.html" %}
+{% load venue_extras %}
+{% block content %}
+<div x-data="listPage({{ params.min_if|default:0 }})">
+  <section class="mb-6 rounded-2xl bg-gradient-to-r from-brand-600 to-violet-600 p-6 text-white shadow">
+    <h1 class="text-2xl font-bold sm:text-3xl">Never miss a submission deadline.</h1>
+    <p class="mt-1 max-w-2xl text-sm text-indigo-100">Live countdowns, ranks and formatting rules for {{ stats.venues }} conferences, journals and symposia worldwide — in your timezone and AoE.</p>
+  </section>
+
+  <div class="grid gap-6 lg:grid-cols-[18rem_1fr]">
+    <!-- Filters -->
+    <aside>
+      <button type="button" class="mb-3 flex w-full items-center justify-between rounded-lg border border-slate-300 px-3 py-2 text-sm lg:hidden dark:border-slate-700" @click="filtersOpen = !filtersOpen">
+        <span><i data-lucide="sliders-horizontal" class="mr-1 inline h-4 w-4"></i>Filters</span><span x-text="filtersOpen ? 'Hide' : 'Show'"></span>
+      </button>
+      <form id="filters" :class="filtersOpen ? '' : 'hidden lg:block'"
+            hx-get="{% url 'venues:list' %}" hx-target="#results" hx-push-url="true" hx-trigger="change, input changed delay:250ms from:#q, submit" hx-indicator="#results"
+            class="space-y-4 rounded-xl border border-slate-200 bg-white p-4 text-sm dark:border-slate-800 dark:bg-slate-900" onsubmit="return false">
+        <div>
+          <label for="q" class="sr-only">Search</label>
+          <div class="relative"><i data-lucide="search" class="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-slate-400"></i>
+          <input id="q" name="q" type="search" value="{{ params.q }}" placeholder="Search name, acronym, topic…" autocomplete="off"
+                 class="w-full rounded-lg border border-slate-300 bg-transparent py-2 pl-8 pr-2 dark:border-slate-700"></div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <label class="text-xs text-slate-500">Sort by
+            <select name="sort" class="mt-1 w-full rounded-lg border border-slate-300 bg-white py-1.5 text-sm text-slate-800 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
+              {% for key, label in sort_options %}<option value="{{ key }}" {% if sort == key %}selected{% endif %}>{{ label }}</option>{% endfor %}
+            </select></label>
+          <label class="text-xs text-slate-500">Direction
+            <select name="dir" class="mt-1 w-full rounded-lg border border-slate-300 bg-white py-1.5 text-sm text-slate-800 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
+              <option value="" {% if not params.dir %}selected{% endif %}>Default</option>
+              <option value="asc" {% if params.dir == 'asc' %}selected{% endif %}>Ascending</option>
+              <option value="desc" {% if params.dir == 'desc' %}selected{% endif %}>Descending</option>
+            </select></label>
+        </div>
+
+        <fieldset><legend class="mb-1 font-semibold">Deadline status</legend>
+          <div class="flex flex-wrap gap-x-3 gap-y-1">
+            <label class="inline-flex items-center gap-1"><input type="radio" name="status" value="" {% if not params.status %}checked{% endif %}>Any</label>
+            {% for v, l in status_choices %}<label class="inline-flex items-center gap-1"><input type="radio" name="status" value="{{ v }}" {% if params.status == v %}checked{% endif %}>{{ l }}</label>{% endfor %}
+          </div></fieldset>
+
+        <fieldset><legend class="mb-1 font-semibold">Venue type</legend>
+          {% for v, l in type_choices %}<label class="mr-3 inline-flex items-center gap-1"><input type="checkbox" name="type" value="{{ v }}" {% checked params 'type' v %}>{{ l }}</label>{% endfor %}</fieldset>
+
+        <fieldset><legend class="mb-1 font-semibold">CORE rank</legend>
+          {% for v, l in core_choices %}<label class="mr-2 inline-flex items-center gap-1"><input type="checkbox" name="core" value="{{ v }}" {% checked params 'core' v %}>{{ l }}</label>{% endfor %}</fieldset>
+
+        <fieldset><legend class="mb-1 font-semibold">CCF rank</legend>
+          {% for v, l in ccf_choices %}<label class="mr-2 inline-flex items-center gap-1"><input type="checkbox" name="ccf" value="{{ v }}" {% checked params 'ccf' v %}>{{ l }}</label>{% endfor %}</fieldset>
+
+        <fieldset><legend class="mb-1 font-semibold">Journal quartile</legend>
+          {% for v, l in quartile_choices %}<label class="mr-2 inline-flex items-center gap-1"><input type="checkbox" name="quartile" value="{{ v }}" {% checked params 'quartile' v %}>{{ l }}</label>{% endfor %}</fieldset>
+
+        <div><label for="min_if" class="mb-1 flex justify-between font-semibold">Min. impact factor <span class="tnum text-brand-600 dark:text-brand-500" x-text="Number(minIf).toFixed(1)"></span></label>
+          <input id="min_if" name="min_if" type="range" min="0" max="60" step="0.5" value="{{ params.min_if|default:0 }}" x-model="minIf" class="w-full accent-indigo-600"></div>
+
+        <fieldset><legend class="mb-1 font-semibold">Review model</legend>
+          {% for v, l in review_choices %}<label class="block"><input type="checkbox" name="review" value="{{ v }}" {% checked params 'review' v %}> {{ l }}</label>{% endfor %}</fieldset>
+
+        <label class="flex items-center gap-2 font-semibold"><input type="checkbox" name="oa" value="1" {% if params.oa %}checked{% endif %}>Open access only</label>
+
+        <details {% if params.domain %}open{% endif %}><summary class="cursor-pointer font-semibold">Research domain</summary>
+          <div class="mt-1 space-y-0.5">{% for d in domains %}<label class="block"><input type="checkbox" name="domain" value="{{ d }}" {% checked params 'domain' d %}> {{ d }}</label>{% endfor %}</div></details>
+
+        <details {% if params.tag %}open{% endif %}><summary class="cursor-pointer font-semibold">Subfield tags</summary>
+          <div class="mt-1 max-h-48 space-y-0.5 overflow-auto">{% for t in tags %}<label class="block"><input type="checkbox" name="tag" value="{{ t.slug }}" {% checked params 'tag' t.slug %}> {{ t.name }}</label>{% endfor %}</div></details>
+
+        <details {% if params.continent %}open{% endif %}><summary class="cursor-pointer font-semibold">Continent</summary>
+          <div class="mt-1 space-y-0.5">{% for c in continents %}<label class="block"><input type="checkbox" name="continent" value="{{ c }}" {% checked params 'continent' c %}> {{ c }}</label>{% endfor %}</div></details>
+
+        <div><label for="country" class="mb-1 block font-semibold">Country</label>
+          <select id="country" name="country" class="w-full rounded-lg border border-slate-300 bg-white py-1.5 text-sm text-slate-800 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
+            <option value="">Any country</option>
+            {% for c in countries %}<option value="{{ c }}" {% if params.country == c %}selected{% endif %}>{{ c }}</option>{% endfor %}
+          </select></div>
+
+        <input type="hidden" name="view" id="view-input" value="{{ view_mode }}">
+        <button type="button" class="w-full rounded-lg border border-slate-300 py-1.5 text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800" @click="reset()">Reset filters</button>
+      </form>
+    </aside>
+
+    <!-- Results -->
+    <section class="min-w-0" x-data="{ view: '{{ view_mode }}' }">
+      <div class="mb-3 inline-flex rounded-lg border border-slate-300 p-0.5 dark:border-slate-700" role="tablist" aria-label="View mode">
+        {% for key, label, icon in view_tabs %}
+        <button type="button" role="tab" :aria-selected="view === '{{ key }}'"
+                @click="view = '{{ key }}'; document.getElementById('view-input').value = '{{ key }}'; htmx.trigger('#filters', 'change')"
+                :class="view === '{{ key }}' ? 'bg-brand-600 text-white' : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'"
+                class="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm"><i data-lucide="{{ icon }}" class="h-4 w-4"></i>{{ label }}</button>
+        {% endfor %}
+      </div>
+      <div id="results">{% include "venues/partials/results.html" %}</div>
+    </section>
+  </div>
+</div>
+{% endblock %}
