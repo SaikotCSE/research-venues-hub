@@ -12,7 +12,7 @@ from django.core.management import call_command
 from django.test import SimpleTestCase, TestCase, override_settings
 from django.urls import reverse
 
-from config.env import env_bool, env_int, env_list, load_dotenv
+from config.env import env, env_bool, env_int, env_list, load_dotenv
 from config.ratelimit import parse_rate
 
 BASE_DIR = Path(settings.BASE_DIR)
@@ -34,15 +34,17 @@ class EnvHelperTests(SimpleTestCase):
             os.unlink(fh.name)
 
     def test_typed_helpers(self):
-        os.environ.update(VP_B="yes", VP_I="12", VP_L="a, b,,c")
+        os.environ.update(VP_B="yes", VP_I="12", VP_L="a, b,,c", VP_EMPTY="")
         try:
+            self.assertEqual(env("VP_EMPTY", "fallback"), "fallback", "empty counts as unset (CI passes VAR='')")
+            self.assertEqual(env("VP_I", "x"), "12")
             self.assertTrue(env_bool("VP_B"))
             self.assertFalse(env_bool("VP_MISSING"))
             self.assertEqual(env_int("VP_I", 1), 12)
             self.assertEqual(env_int("VP_MISSING", 7), 7)
             self.assertEqual(env_list("VP_L"), ["a", "b", "c"])
         finally:
-            for k in ("VP_B", "VP_I", "VP_L"):
+            for k in ("VP_B", "VP_I", "VP_L", "VP_EMPTY"):
                 os.environ.pop(k)
 
     def test_parse_rate(self):

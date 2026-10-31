@@ -21,7 +21,9 @@ def load_dotenv(path: Path) -> None:
 
 
 def env(key: str, default: str = "") -> str:
-    return os.environ.get(key, default)
+    """The variable's value; unset *or empty* falls back to ``default`` (CI matrices often pass ``VAR=''``)."""
+    value = os.environ.get(key)
+    return default if value is None or value == "" else value
 
 
 def env_bool(key: str, default: bool = False) -> bool:
