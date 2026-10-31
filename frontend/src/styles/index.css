@@ -1,0 +1,166 @@
+@import "@fontsource-variable/inter/wght.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 240 10% 4%;
+    --surface: 240 10% 98.4%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 4%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 4%;
+    --primary: 243 75% 59%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 240 5% 96%;
+    --secondary-foreground: 240 6% 10%;
+    --muted: 240 5% 96%;
+    --muted-foreground: 240 4% 43%;
+    --accent: 240 5% 95%;
+    --accent-foreground: 240 6% 10%;
+    --destructive: 347 77% 50%;
+    --destructive-foreground: 0 0% 100%;
+    --success: 161 94% 30%;
+    --success-foreground: 0 0% 100%;
+    --warning: 32 95% 44%;
+    --warning-foreground: 0 0% 100%;
+    --border: 240 6% 90%;
+    --input: 240 6% 88%;
+    --ring: 243 75% 59%;
+    --brand: 243 75% 59%;
+    --brand-text: 244 58% 51%;
+    --brand-soft: 226 100% 97%;
+    --radius: 0.625rem;
+    /* Chart series (validated for colour-vision deficiency against the card surface). */
+    --chart-1: #4f46e5;
+    --chart-2: #eb6834;
+    --chart-grid: hsl(240 6% 92%);
+    --chart-axis: hsl(240 4% 46%);
+  }
+
+  .dark {
+    --background: 240 10% 4%;
+    --foreground: 0 0% 98%;
+    --surface: 240 9% 5.5%;
+    --card: 240 8% 6.5%;
+    --card-foreground: 0 0% 98%;
+    --popover: 240 8% 7.5%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 242 78% 61%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 240 5% 13%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 240 5% 13%;
+    --muted-foreground: 240 5% 65%;
+    --accent: 240 5% 14%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 350 89% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --success: 158 64% 52%;
+    --success-foreground: 240 10% 4%;
+    --warning: 43 96% 56%;
+    --warning-foreground: 240 10% 4%;
+    --border: 240 5% 15%;
+    --input: 240 5% 19%;
+    --ring: 239 84% 67%;
+    --brand: 239 84% 67%;
+    --brand-text: 230 94% 82%;
+    --brand-soft: 242 47% 14%;
+    --chart-1: #7a7ff3;
+    --chart-2: #d95926;
+    --chart-grid: hsl(240 5% 16%);
+    --chart-axis: hsl(240 5% 62%);
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-rendering: optimizeLegibility;
+    scroll-padding-top: 5rem;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  ::selection {
+    @apply bg-primary/20;
+  }
+
+  :focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+  }
+
+  /* Keep visually-hidden labels from escaping horizontally scrolling containers. */
+  :where(.overflow-auto, .overflow-x-auto, .overflow-y-auto) {
+    position: relative;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer components {
+  .link {
+    @apply font-medium text-brand-text underline-offset-4 hover:underline;
+  }
+
+  .tnum {
+    font-variant-numeric: tabular-nums;
+  }
+
+  .eyebrow {
+    @apply text-xs font-semibold uppercase tracking-[0.12em] text-brand-text;
+  }
+
+  .bg-grid {
+    background-image: linear-gradient(to right, hsl(var(--border) / 0.7) 1px, transparent 1px),
+      linear-gradient(to bottom, hsl(var(--border) / 0.7) 1px, transparent 1px);
+    background-size: 44px 44px;
+  }
+
+  .mask-fade {
+    mask-image: radial-gradient(ellipse 70% 60% at 50% 0%, #000 40%, transparent 100%);
+  }
+
+  .prose-app {
+    @apply max-w-none text-[15px] leading-7 text-foreground/90;
+  }
+  .prose-app h2 {
+    @apply mb-3 mt-10 text-xl font-semibold tracking-tight text-foreground;
+  }
+  .prose-app h3 {
+    @apply mb-2 mt-6 text-base font-semibold text-foreground;
+  }
+  .prose-app p {
+    @apply my-3;
+  }
+  .prose-app ul {
+    @apply my-3 list-disc space-y-1.5 pl-5;
+  }
+  .prose-app a {
+    @apply link;
+  }
+  .prose-app code {
+    @apply rounded bg-muted px-1.5 py-0.5 font-mono text-[0.85em];
+  }
+
+  .scrollbar-thin {
+    scrollbar-width: thin;
+  }
+}

@@ -25,8 +25,8 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "django.contrib.sitemaps",
     "django.contrib.humanize",
-    "django.forms",
     "config",
+    "webapp",
     "venues",
     "accounts",
     "tracker",
@@ -49,7 +49,6 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = "config.urls"
-FORM_RENDERER = "config.forms.FormRenderer"
 WSGI_APPLICATION = "config.wsgi.application"
 ASGI_APPLICATION = "config.asgi.application"
 
@@ -63,9 +62,8 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
-                "accounts.context_processors.nav",
+                "config.site.csp_nonce",
             ],
-            "builtins": ["venues.templatetags.venue_extras", "django.contrib.humanize.templatetags.humanize"],
         },
     },
 ]
@@ -104,6 +102,11 @@ USE_TZ = True
 
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
+# The React bundle (webapp/static/webapp/assets/) is content-hashed by Vite: cache it forever.
+WHITENOISE_IMMUTABLE_FILE_TEST = r"^.+(\.[0-9a-f]{8,12}\.|/webapp/assets/).+$"
+# Point at `npm run dev` (e.g. http://localhost:5173) for hot reloading; empty = use the committed build.
+VITE_DEV_SERVER_URL = env("VITE_DEV_SERVER_URL", "")
+
 STORAGES = {
     "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
     "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
@@ -113,6 +116,7 @@ SESSION_COOKIE_AGE = 60 * 60 * 24 * 365  # anonymous bookmarks live in the sessi
 SESSION_COOKIE_SAMESITE = "Lax"
 CSRF_COOKIE_HTTPONLY = True
 X_FRAME_OPTIONS = "DENY"
+CSRF_FAILURE_VIEW = "webapp.views.csrf_failure"  # JSON for /api/ callers
 SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
 SECURE_CROSS_ORIGIN_OPENER_POLICY = "same-origin"
 
@@ -130,12 +134,12 @@ else:
 DEFAULT_FROM_EMAIL = env("DJANGO_FROM_EMAIL", "VenuePulse <noreply@venuepulse.local>")
 SERVER_EMAIL = DEFAULT_FROM_EMAIL
 
-# Content-Security-Policy (see config/middleware.py). Alpine.js evaluates expressions, hence 'unsafe-eval'.
+# Content-Security-Policy (see config/middleware.py): scripts only from this origin plus the nonce'd theme snippet.
 CSP_ENABLED = env_bool("CSP_ENABLED", True)
 CSP_REPORT_ONLY = env_bool("CSP_REPORT_ONLY", False)
 CSP_DIRECTIVES = {
     "default-src": ["'self'"],
-    "script-src": ["'self'", "'unsafe-eval'", "{nonce}"],
+    "script-src": ["'self'", "{nonce}"],
     "style-src": ["'self'", "'unsafe-inline'"],
     "img-src": ["'self'", "data:"],
     "font-src": ["'self'"],

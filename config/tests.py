@@ -9,7 +9,6 @@ from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.cache import cache
 from django.core.management import call_command
-from django.template import Context, Template
 from django.test import SimpleTestCase, TestCase, override_settings
 from django.urls import reverse
 
@@ -89,26 +88,7 @@ class ProductionSettingsTests(SimpleTestCase):
         self.assertIn("venuepulse.W001", result.stdout + result.stderr)
 
 
-class IconTagTests(SimpleTestCase):
-    def test_icon_renders_sprite_reference(self):
-        html = Template('{% icon "search" "h-5 w-5" %}').render(Context())
-        self.assertIn('aria-hidden="true"', html)
-        self.assertIn("venues/img/icons.svg#search", html)
-        labelled = Template('{% icon "bell" label="Alerts" %}').render(Context())
-        self.assertIn('role="img"', labelled)
-        self.assertIn('aria-label="Alerts"', labelled)
-
-    def test_every_icon_used_in_templates_exists_in_sprite(self):
-        sprite = (BASE_DIR / "venues/static/venues/img/icons.svg").read_text()
-        available = set(re.findall(r'<symbol id="([a-z0-9-]+)"', sprite))
-        used = set()
-        for path in BASE_DIR.glob("**/templates/**/*.html"):
-            if "node_modules" in path.parts or ".venv" in path.parts:
-                continue
-            used |= set(re.findall(r'\{%\s*icon\s+"([a-z0-9-]+)"', path.read_text()))
-        self.assertTrue(used)
-        self.assertEqual(sorted(used - available), [], "run `npm run build:icons` after adding icons")
-
+class TemplateHygieneTests(SimpleTestCase):
     def test_no_inline_event_handlers_or_cdn_scripts(self):
         offenders = []
         for path in BASE_DIR.glob("**/templates/**/*.html"):
@@ -117,7 +97,17 @@ class IconTagTests(SimpleTestCase):
             text = path.read_text()
             if re.search(r"\son(click|change|submit|input|load|focus|keyup|keydown)=", text) or "cdn." in text or "unpkg.com" in text:
                 offenders.append(str(path.relative_to(BASE_DIR)))
-        self.assertEqual(offenders, [], "inline handlers break the CSP; use Alpine (@click etc.) and local static files")
+        self.assertEqual(offenders, [], "inline handlers break the CSP; keep behaviour in the React bundle or static files")
+
+    def test_every_page_module_exists_in_the_build(self):
+        from webapp import vite
+        from webapp.views import PAGE_MODULES, PAGES
+
+        manifest = vite.manifest()
+        self.assertIn(vite.ENTRY, manifest)
+        missing = [m for m in PAGE_MODULES.values() if f"frontend/src/{m}" not in manifest]
+        self.assertEqual(missing, [], "run `npm run build` after adding pages")
+        self.assertLessEqual(set(PAGE_MODULES), set(PAGES))
 
 
 class SecurityHeaderTests(TestCase):
@@ -128,6 +118,8 @@ class SecurityHeaderTests(TestCase):
         self.assertIn(f'<script nonce="{nonce}">', r.content.decode())
         self.assertIn("frame-ancestors 'none'", csp)
         self.assertIn("object-src 'none'", csp)
+        self.assertNotIn("unsafe-eval", csp)
+        self.assertIn("script-src 'self' 'nonce-", csp)
         self.assertNotEqual(nonce, re.search(r"'nonce-([^']+)'", self.client.get(reverse("venues:list"))["Content-Security-Policy"]).group(1))
 
     @override_settings(CSP_REPORT_ONLY=True)
@@ -177,14 +169,36 @@ class OpsEndpointTests(TestCase):
         self.assertEqual(self.client.get("/favicon.ico").status_code, 301)
 
     def test_static_assets_are_served(self):
-        for path in ("venues/css/app.css", "venues/js/app.js", "venues/vendor/htmx.min.js", "venues/vendor/alpine.min.js", "venues/img/icons.svg"):
-            r = self.client.get(f"/static/{path}")
-            self.assertEqual(r.status_code, 200, path)
+        from webapp import vite
+
+        assets = vite.entry_assets(page_module="frontend/src/pages/explore.tsx")
+        for url in (assets["script"], *assets["styles"], *assets["preloads"], "/static/venues/js/embed.js", "/static/venues/img/favicon.svg"):
+            r = self.client.get(url)
+            self.assertEqual(r.status_code, 200, url)
+        self.assertTrue(any("explore-" in p for p in assets["preloads"]), "the page's own chunk is preloaded")
 
     def test_custom_404(self):
         r = self.client.get("/definitely-not-here/")
         self.assertEqual(r.status_code, 404)
-        self.assertContains(r, "We couldn’t find that page", status_code=404)
+        self.assertContains(r, '"page": "not_found"', status_code=404)
+        self.assertContains(r, "<title>Page not found · VenuePulse</title>", status_code=404)
+        api = self.client.get("/api/app/definitely-not-here/")
+        self.assertEqual((api.status_code, api.json()), (404, {"error": "Not found."}))
+
+    def test_missing_trailing_slash_redirects(self):
+        r = self.client.get("/venue/neurips?x=1")
+        self.assertEqual((r.status_code, r["Location"]), (301, "/venue/neurips/?x=1"))
+
+    def test_csrf_failures_are_json_for_the_api(self):
+        from django.test import Client
+
+        client = Client(enforce_csrf_checks=True)
+        r = client.post("/api/app/venues/neurips/star/", data="{}", content_type="application/json")
+        self.assertEqual(r.status_code, 403)
+        self.assertIn("CSRF", r.json()["error"])
+        token = client.get("/api/app/session/").json()["csrf_token"]
+        r = client.post("/api/app/venues/neurips/star/", data="{}", content_type="application/json", HTTP_X_CSRFTOKEN=token)
+        self.assertEqual(r.status_code, 200)
 
     def test_canonical_and_open_graph(self):
         r = self.client.get(reverse("venues:detail", args=["neurips"]))
@@ -199,16 +213,17 @@ class RateLimitTests(TestCase):
 
     @override_settings(RATELIMIT_ENABLED=True, RATELIMITS={**settings.RATELIMITS, "login": "3/m"})
     def test_login_is_rate_limited(self):
-        url = reverse("accounts:login")
+        url = "/api/app/auth/login/"
+        body = '{"username": "rl", "password": "wrong"}'
         for _ in range(3):
-            r = self.client.post(url, {"username": "rl", "password": "wrong"})
-            self.assertEqual(r.status_code, 200)
+            r = self.client.post(url, data=body, content_type="application/json")
+            self.assertEqual(r.status_code, 400)
             self.assertEqual(r["X-RateLimit-Limit"], "3")
-        r = self.client.post(url, {"username": "rl", "password": "wrong"})
+        r = self.client.post(url, data=body, content_type="application/json")
         self.assertEqual(r.status_code, 429)
         self.assertIn("Retry-After", r)
-        self.assertContains(r, "Too many requests", status_code=429)
-        self.assertEqual(self.client.get(url).status_code, 200, "GETs are not limited")
+        self.assertIn("Too many requests", r.json()["error"])
+        self.assertEqual(self.client.get(reverse("accounts:login")).status_code, 200, "the page itself is not limited")
 
     @override_settings(RATELIMIT_ENABLED=True, RATELIMITS={**settings.RATELIMITS, "api_public": "2/m"})
     def test_api_limit_returns_json(self):

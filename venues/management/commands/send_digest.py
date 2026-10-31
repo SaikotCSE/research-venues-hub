@@ -15,7 +15,7 @@ from django.core.management.base import BaseCommand
 from django.template.loader import render_to_string
 from django.utils import timezone
 
-from accounts.context_processors import site_base_url
+from config.site import site_base_url
 from tracker.models import Submission
 from venues.models import DeadlineCycle, VenueBookmark
 

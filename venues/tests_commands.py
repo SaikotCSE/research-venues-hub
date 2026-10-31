@@ -139,7 +139,8 @@ class DigestAndDemoTests(TestCase):
         run("seed_demo", "--password", "demo-pass-123")
         self.assertEqual(first, (demo.submissions.count(), VenueBookmark.objects.filter(user=demo).count()))
         self.assertTrue(self.client.login(username="demo", password="demo-pass-123"))
-        self.assertContains(self.client.get(reverse("tracker:board")), "cardiac MRI")
+        board = self.client.get("/api/app/tracker/board/").json()
+        self.assertIn("cardiac MRI", " ".join(i["paper"]["title"] for c in board["columns"] for i in c["items"]))
         self.assertTrue(demo.venue_lists.filter(is_public=True).exists())
         submitted = Submission.objects.filter(user=demo, status__in=["submitted", "review"])
         self.assertTrue(all(s.cycle and s.cycle.submission_deadline < timezone.now() for s in submitted))
@@ -181,7 +182,10 @@ class AdminTests(TestCase):
         cycle.refresh_from_db()
         self.assertFalse(cycle.is_projected)
         self.assertIsNotNone(cycle.verified_at)
-        self.assertContains(self.client.get(reverse("venues:detail", args=["cvpr"])), "Verified")
+        cycles = self.client.get("/api/app/venues/cvpr/").json()["cycles"]
+        verified = next(c for c in cycles if c["id"] == cycle.pk)
+        self.assertFalse(verified["is_projected"])
+        self.assertIsNotNone(verified["verified_at"])
         self.assertEqual(DeadlineChange.objects.count(), 0, "verification is not a date change")
 
     def test_export_selected_csv_action(self):

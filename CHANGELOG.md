@@ -2,6 +2,35 @@
 
 All notable changes to this project are documented here. Dates are in UTC.
 
+## [2.0.0] — 2026-10-31
+
+### Changed
+- **New frontend:** the HTMX/Alpine templates are replaced by a React 18 + TypeScript single-page app built with Vite,
+  Tailwind CSS and Radix UI primitives (shadcn-style component library, Inter typeface, lucide icons). New visual
+  design throughout with refined light and dark themes.
+- Django now serves an HTML shell per route (titles, canonical URLs, Open Graph, JSON-LD, correct 404s and login
+  redirects) with the first screen's data embedded, plus a session-authenticated JSON API under `/api/app/` that
+  reuses the existing forms for validation. All existing URLs and URL names keep working.
+- Content-Security-Policy no longer needs `'unsafe-eval'`.
+
+### Added
+- Command palette with live venue search, recent venues, pages and actions; quick-view dialogs on venue cards;
+  comparison tray; keyboard-accessible kanban drag & drop with screen-reader announcements and a "Move to" menu.
+- Venue pages: segmented live countdown, submission-window progress, milestone stepper, tabbed LaTeX/BibTeX snippets,
+  inline lists membership, review dialog with star ratings, correction-suggestion dialog, embed & API panel.
+- Insights rebuilt with Recharts, each chart with a data-table view; colour palette validated for colour-vision
+  deficiencies.
+- Notifications popover, onboarding progress, saved-search dialog, data-export and account-deletion dialogs,
+  password visibility toggles, optimistic updates for stars, notes, checklists and board moves.
+- Frontend tooling: TypeScript strict mode, ESLint (with jsx-a11y and React Hooks rules), Prettier, Vitest + Testing
+  Library unit tests; new Playwright suite covering anonymous, sign-up and signed-in flows with axe-core checks.
+- Performance: route-level code splitting with server-side preloading of the current page's chunk, time-sliced first
+  render, shared countdown clock, lazily mounted tooltips and command palette, `content-visibility` for off-screen
+  cards, immutable caching for hashed assets.
+
+### Removed
+- HTMX, Alpine.js and Chart.js, the server-rendered page templates, the icon sprite and the template form renderer.
+
 ## [1.0.0] — 2026-10-31
 
 ### Added

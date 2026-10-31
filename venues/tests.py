@@ -14,8 +14,6 @@ from .filters import filter_venues
 from .models import DeadlineCycle, ResearchSubfield, Venue, VenueBookmark
 from .seed_data import ALL_VENUES
 
-HX = {"HTTP_HX_REQUEST": "true"}
-
 
 def make_venue(acronym="TST", **kw):
     defaults = {"name": f"Test {acronym}", "acronym": acronym, "slug": acronym.lower(), "venue_type": "Conference", "primary_domain": "AI / Machine Learning"}
@@ -191,7 +189,12 @@ class SeedTests(TestCase):
         self.assertFalse(cycle.is_projected)
 
 
+APP = "/api/app"
+
+
 class ViewTests(TestCase):
+    """Catalogue behaviour through the app API, the server-rendered shell and the downloads."""
+
     @classmethod
     def setUpTestData(cls):
         call_command("seed_venues", verbosity=0)
@@ -199,27 +202,39 @@ class ViewTests(TestCase):
     def acronyms(self, **params):
         return {v.acronym for v in filter_venues(_QD(params))}
 
+    def star(self, slug, **body):
+        return self.client.post(f"{APP}/venues/{slug}/star/", data=json.dumps(body), content_type="application/json")
+
     # ---- list / filters
-    def test_list_page_renders(self):
+    def test_home_shell_embeds_first_screen(self):
         r = self.client.get(reverse("venues:list"))
-        self.assertContains(r, "VenuePulse")
-        self.assertContains(r, 'id="filters"')
-        self.assertEqual(r.context["total"], Venue.objects.count())
-        self.assertContains(self.client.get(reverse("venues:list"), {"q": "neurips"}), "NeurIPS")
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, '<div id="root">')
+        boot = json.loads(r.content.decode().split('id="vp-boot" type="application/json">')[1].split("</script>")[0])
+        self.assertEqual(boot["page"], "explore")
+        self.assertEqual(boot["initial"]["explore"]["total"], Venue.objects.count())
+        self.assertIn("domains", boot["initial"]["facets"])
+        self.assertEqual(set(boot["initial"]["home"]["stats"]), {"venues", "open", "closing_30", "countries"})
+        self.assertEqual(set(r["Cache-Control"].split(", ")), {"private", "no-cache"})
 
-    def test_htmx_returns_partial(self):
-        r = self.client.get(reverse("venues:list"), **HX)
-        self.assertNotContains(r, "<html")
-        self.assertContains(r, "showing 1–24")
+    def test_explore_api_pages_and_marks_stars(self):
+        data = self.client.get(f"{APP}/explore/").json()
+        self.assertEqual(data["total"], Venue.objects.count())
+        self.assertEqual((data["page"], data["page_size"], len(data["results"])), (1, 24, 24))
+        self.assertEqual(self.client.get(f"{APP}/explore/", {"view": "table"}).json()["page_size"], 50)
+        self.assertEqual(self.client.get(f"{APP}/explore/", {"page": 2}).json()["page"], 2)
+        self.star("cvpr")
+        cvpr = self.client.get(f"{APP}/explore/", {"q": "cvpr"}).json()["results"][0]
+        self.assertEqual((cvpr["acronym"], cvpr["starred"]), ("CVPR", True))
+        self.assertEqual(cvpr["trackers"], 1)
 
-    def test_view_modes(self):
-        for mode, marker in (("grid", "<article"), ("table", "<table"), ("calendar", "No milestones")):
-            r = self.client.get(reverse("venues:list"), {"view": mode}, **HX)
-            self.assertEqual(r.status_code, 200)
-            if mode == "calendar":
-                self.assertContains(r, "next 12 months")
-            else:
-                self.assertContains(r, marker)
+    def test_explore_views(self):
+        timeline = self.client.get(f"{APP}/explore/timeline/").json()
+        self.assertTrue(timeline["rows"])
+        self.assertTrue({"segments", "markers", "venue", "cycle"} <= set(timeline["rows"][0]))
+        calendar = self.client.get(f"{APP}/explore/calendar/", {"type": "Conference"}).json()
+        self.assertEqual(len(calendar["months"]), 12)
+        self.assertTrue(any(m["events"] for m in calendar["months"]))
 
     def test_filter_venue_type(self):
         r = self.client.get(reverse("venues:api_venues"), {"type": "Journal", "page_size": 200}).json()
@@ -274,29 +289,31 @@ class ViewTests(TestCase):
         self.assertEqual(rank, sorted(rank, reverse=True))
         self.assertTrue(filter_venues(_QD({"sort": "bogus"})).exists())
 
-    def test_pagination(self):
-        r = self.client.get(reverse("venues:list"), {"page": 2}, **HX)
-        self.assertContains(r, "Page <strong")
-        self.assertEqual(r.context["page_obj"].number, 2)
+    # ---- detail / ics
+    def test_detail_api(self):
+        d = self.client.get(f"{APP}/venues/cvpr/").json()
+        self.assertEqual(d["acronym"], "CVPR")
+        self.assertIn("@inproceedings", d["bibtex"])
+        self.assertIn("\\documentclass", d["latex"])
+        self.assertEqual(d["urls"]["ics"], reverse("venues:ics", args=["cvpr"]))
+        self.assertTrue(d["cycles"] and d["steps"] and d["checklist"])
+        self.assertEqual(d["me"], {"starred": False, "note": "", "note_updated_at": None, "lists": None, "review": None})
+        self.assertEqual(self.client.get(f"{APP}/venues/does-not-exist/").status_code, 404)
 
-    # ---- detail / modal / ics
-    def test_detail_page(self):
+    def test_detail_page_shell(self):
         r = self.client.get(reverse("venues:detail", args=["cvpr"]))
-        self.assertContains(r, "Submission &amp; formatting guide")
-        self.assertContains(r, "Copy LaTeX / BibTeX info")
-        self.assertContains(r, "@inproceedings")
-        self.assertContains(r, reverse("venues:ics", args=["cvpr"]))
-        self.assertEqual(self.client.get("/venue/does-not-exist/").status_code, 404)
+        self.assertContains(r, "<title>CVPR 2027 deadlines, rank &amp; submission guide · VenuePulse</title>", html=False)
+        self.assertContains(r, '"slug": "cvpr"')  # initial data for the first paint
+        missing = self.client.get("/venue/does-not-exist/")
+        self.assertEqual(missing.status_code, 404)
+        self.assertContains(missing, '"not_found": "venue"', status_code=404)
 
     def test_detail_journal(self):
-        r = self.client.get(reverse("venues:detail", args=["nature"]))
-        self.assertContains(r, "Rolling submissions")
-        self.assertContains(r, "@article")
-
-    def test_modal(self):
-        r = self.client.get(reverse("venues:modal", args=["icml"]))
-        self.assertContains(r, "ICML")
-        self.assertNotContains(r, "<html")
+        d = self.client.get(f"{APP}/venues/nature/").json()
+        self.assertTrue(d["is_rolling"])
+        self.assertIsNone(d["next_deadline"])
+        self.assertIn("@article", d["bibtex"])
+        self.assertIsNone(d["urls"]["ics"])
 
     def test_ics(self):
         r = self.client.get(reverse("venues:ics", args=["cvpr"]))
@@ -316,50 +333,53 @@ class ViewTests(TestCase):
 
     # ---- compare
     def test_compare(self):
-        r = self.client.get(reverse("venues:compare"), {"s": ["cvpr", "nature", "cvpr"]})
-        self.assertContains(r, "CVPR")
-        self.assertContains(r, "Nature")
-        self.assertEqual(len(r.context["venues"]), 2)
+        d = self.client.get(f"{APP}/compare/", {"s": ["cvpr", "nature", "cvpr"]}).json()
+        self.assertEqual([v["acronym"] for v in d["venues"]], ["CVPR", "Nature"])
+        self.assertEqual(d["max"], 4)
+        self.assertTrue(all(len(row["cells"]) == 2 for row in d["rows"]))
 
     def test_compare_limited_to_four(self):
-        r = self.client.get(reverse("venues:compare"), {"s": ["cvpr", "icml", "iclr", "kdd", "nature"]}, **HX)
-        self.assertEqual(r.status_code, 200)
-        self.assertEqual(len(r.context["venues"]), 4)
+        d = self.client.get(f"{APP}/compare/", {"s": ["cvpr", "icml", "iclr", "kdd", "nature"]}).json()
+        self.assertEqual(len(d["venues"]), 4)
 
     def test_compare_empty(self):
-        self.assertContains(self.client.get(reverse("venues:compare"), **HX), "Tick")
+        self.assertEqual(self.client.get(f"{APP}/compare/").json()["venues"], [])
 
     # ---- bookmarks & notes
     def test_bookmark_toggle_and_targets(self):
-        url = reverse("venues:bookmark", args=["cvpr"])
+        url = f"{APP}/venues/cvpr/star/"
         self.assertEqual(self.client.get(url).status_code, 405)
-        r = self.client.post(url)
-        self.assertContains(r, 'aria-pressed="true"')
-        trigger = json.loads(r["HX-Trigger"])
-        self.assertTrue(trigger["targets-changed"])
-        self.assertIn("Saved CVPR", trigger["toast"]["message"])
-        self.assertContains(self.client.get(reverse("venues:targets")), "CVPR")
-        self.assertContains(self.client.post(url), 'aria-pressed="false"')
-        self.assertNotContains(self.client.get(reverse("venues:targets")), "article")
+        r = self.star("cvpr").json()
+        self.assertEqual((r["starred"], r["target_count"]), (True, 1))
+        self.assertIn("Saved CVPR", r["message"])
+        self.assertEqual([v["acronym"] for v in self.client.get(f"{APP}/targets/").json()["results"]], ["CVPR"])
+        self.assertFalse(self.star("cvpr").json()["starred"])
+        self.assertEqual(self.client.get(f"{APP}/targets/").json()["count"], 0)
+        # explicit state is idempotent
+        self.assertTrue(self.star("cvpr", starred=True).json()["starred"])
+        self.assertTrue(self.star("cvpr", starred=True).json()["starred"])
 
     def test_bookmarks_are_per_session(self):
-        self.client.post(reverse("venues:bookmark", args=["cvpr"]))
+        self.star("cvpr")
         from django.test import Client
 
-        other = Client()
-        self.assertNotContains(other.get(reverse("venues:targets")), "CVPR")
+        self.assertEqual(Client().get(f"{APP}/targets/").json()["count"], 0)
 
     def test_notes(self):
-        self.client.post(reverse("venues:note", args=["kdd"]), {"note": "Submit with Alice"})
+        r = self.client.put(f"{APP}/venues/kdd/note/", data=json.dumps({"note": "Submit with Alice"}), content_type="application/json")
+        self.assertEqual(r.json()["note"], "Submit with Alice")
         bm = VenueBookmark.objects.get(venue__slug="kdd")
         self.assertEqual(bm.note, "Submit with Alice")
         self.assertFalse(bm.is_starred)
-        self.assertContains(self.client.get(reverse("venues:detail", args=["kdd"])), "Submit with Alice")
+        self.assertEqual(self.client.get(f"{APP}/venues/kdd/").json()["me"]["note"], "Submit with Alice")
 
-    def test_starred_state_in_list(self):
-        self.client.post(reverse("venues:bookmark", args=["cvpr"]))
-        r = self.client.get(reverse("venues:list"), {"q": "cvpr"}, **HX)
-        self.assertContains(r, 'aria-pressed="true"')
+    def test_bad_json_and_methods(self):
+        r = self.client.post(f"{APP}/venues/cvpr/star/", data="[1, 2]", content_type="application/json")
+        self.assertEqual(r.status_code, 400)
+        self.assertIn("error", r.json())
+        r = self.client.delete(f"{APP}/venues/cvpr/")
+        self.assertEqual((r.status_code, r["Allow"]), (405, "GET"))
+        self.assertEqual(self.client.get(f"{APP}/no-such-endpoint/").json(), {"error": "Not found."})
 
     # ---- export
     def test_export_csv(self):
@@ -374,7 +394,7 @@ class ViewTests(TestCase):
         r = self.client.get(reverse("venues:export_csv"), {"type": "Journal"})
         rows = list(csv.DictReader(io.StringIO(r.content.decode())))
         self.assertTrue(rows and all(row["venue_type"] == "Journal" for row in rows))
-        self.client.post(reverse("venues:bookmark", args=["icml"]))
+        self.star("icml")
         r = self.client.get(reverse("venues:export_csv"), {"scope": "targets"})
         rows = list(csv.DictReader(io.StringIO(r.content.decode())))
         self.assertEqual([row["acronym"] for row in rows], ["ICML"])
@@ -391,7 +411,7 @@ class ViewTests(TestCase):
         neurips = next(v for v in data["results"] if v["acronym"] == "NeurIPS")
         self.assertTrue(neurips["cycles"])
 
-    # ---- API
+    # ---- public API
     def test_api(self):
         data = self.client.get(reverse("venues:api_venues"), {"page_size": 10}).json()
         self.assertEqual(len(data["results"]), 10)

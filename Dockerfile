@@ -1,6 +1,7 @@
 # syntax=docker/dockerfile:1
 # Production image: Python deps in a virtualenv, static files collected at build time,
-# non-root user, healthcheck, gunicorn. CSS/JS are pre-built and committed (npm run build).
+# non-root user, healthcheck, gunicorn. The React bundle is pre-built and committed (npm run build),
+# so the image needs no Node toolchain.
 
 FROM python:3.13-slim AS builder
 ENV PIP_NO_CACHE_DIR=1 PIP_DISABLE_PIP_VERSION_CHECK=1

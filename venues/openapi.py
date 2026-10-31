@@ -24,6 +24,42 @@ FILTER_PARAMS = [
 ]
 
 
+# Shown on the API documentation page (method, path, description), grouped by audience.
+API_ENDPOINTS = [
+    (
+        "Catalogue (public)",
+        [
+            ("GET", "/api/venues/", "Paginated, filterable list of venues"),
+            ("GET", "/api/venues/{slug}/", "One venue with every deadline cycle"),
+            ("GET", "/api/tags/", "Subfield tags with venue counts"),
+            ("GET", "/api/insights/", "Aggregates behind the Insights page"),
+            ("GET", "/api/stats/", "Catalogue totals and server time"),
+            ("GET", "/api/suggest/?q=", "Autocomplete (up to 8 venues)"),
+            ("GET", "/api/openapi.json", "OpenAPI 3.1 description of this API"),
+        ],
+    ),
+    (
+        "Your account (bearer token)",
+        [
+            ("GET", "/api/v1/me/", "Your profile"),
+            ("GET", "/api/v1/me/targets/", "Your starred venues"),
+            ("POST", "/api/v1/me/targets/", 'Star a venue — body {"slug": "cvpr"}'),
+            ("DELETE", "/api/v1/me/targets/{slug}/", "Unstar a venue"),
+            ("GET", "/api/v1/me/submissions/", "Your tracked submissions"),
+        ],
+    ),
+    (
+        "Feeds & exports (public)",
+        [
+            ("GET", "/calendar.ics?…", "iCalendar feed of every upcoming milestone matching the filters"),
+            ("GET", "/feed/deadlines.atom?…", "Atom feed of the next 50 deadlines"),
+            ("GET", "/export/csv/?…", "CSV export (spreadsheet friendly)"),
+            ("GET", "/export/json/?…", "JSON export including all cycles (re-importable with import_venues)"),
+        ],
+    ),
+]
+
+
 def _param(name, typ, desc, where="query"):
     return {"name": name, "in": where, "required": where == "path", "description": desc, "schema": {"type": typ}}
 

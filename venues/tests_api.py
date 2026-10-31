@@ -83,9 +83,11 @@ class PublicApiTests(TestCase):
         self.assertEqual(schema["servers"][0]["url"], "http://testserver")
 
     def test_docs_page(self):
-        r = self.client.get(reverse("venues:api_docs"))
-        for text in ("Authorization: Bearer", "/api/openapi.json", "If-None-Match", "X-RateLimit-Remaining"):
-            self.assertContains(r, text)
+        self.assertContains(self.client.get(reverse("venues:api_docs")), "<title>API documentation · VenuePulse</title>")
+        meta = self.client.get("/api/app/api-meta/").json()
+        self.assertEqual(meta["host"], "http://testserver")
+        self.assertIn("/api/openapi.json", [e["path"] for g in meta["groups"] for e in g["endpoints"]])
+        self.assertEqual(set(meta["limits"]) >= {"api_public", "api_token"}, True)
 
 
 class TokenApiErrorTests(TestCase):

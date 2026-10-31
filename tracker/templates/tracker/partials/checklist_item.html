@@ -1,3 +1,0 @@
-<li id="item-{{ item.pk }}"><label class="flex cursor-pointer items-start gap-2.5 py-2 text-sm">
-  <input type="checkbox" {% if item.done %}checked{% endif %} hx-post="{% url 'tracker:checklist_toggle' item.submission_id item.pk %}" hx-target="#item-{{ item.pk }}" hx-swap="outerHTML" class="mt-0.5 h-4 w-4 rounded">
-  <span class="{% if item.done %}text-slate-500 line-through dark:text-slate-400{% endif %}">{{ item.text }}</span></label></li>

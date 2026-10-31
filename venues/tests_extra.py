@@ -51,12 +51,14 @@ class RecommenderTests(TestCase):
         res = recommend("neural networks", only_with_deadline=True, limit=50)
         self.assertTrue(all(r["next"] or r["venue"].is_rolling_submission for r in res))
 
-    def test_recommend_page(self):
-        r = self.client.get(reverse("venues:recommend"), {"text": "graph neural networks for recommender systems"})
-        self.assertContains(r, "match")
-        self.assertTrue(r.context["results"])
-        self.assertContains(self.client.get(reverse("venues:recommend")), "Where should I submit?")
-        self.assertContains(self.client.get(reverse("venues:recommend"), {"text": "zzzxqv"}), "No venues matched")
+    def test_recommend_api(self):
+        d = self.client.get("/api/app/recommend/", {"text": "graph neural networks for recommender systems"}).json()
+        self.assertTrue(d["results"])
+        self.assertEqual(d["results"][0]["percent"], 100)
+        self.assertIn("slug", d["results"][0]["venue"])
+        self.assertEqual(self.client.get("/api/app/recommend/").json()["results"], [])
+        self.assertEqual(self.client.get("/api/app/recommend/", {"text": "zzzxqv"}).json()["results"], [])
+        self.assertContains(self.client.get(reverse("venues:recommend")), "<title>Venue recommender · VenuePulse</title>")
 
     def test_planner(self):
         today = timezone.localdate()
@@ -67,11 +69,11 @@ class RecommenderTests(TestCase):
         far = plan(today + timedelta(days=60), domain="Security & Privacy")
         self.assertTrue(all(r["venue"].primary_domain == "Security & Privacy" for r in far))
 
-    def test_plan_page(self):
-        r = self.client.get(reverse("venues:plan"), {"ready": timezone.localdate().isoformat()})
-        self.assertTrue(r.context["rows"])
-        self.assertContains(r, "Slack")
-        self.assertEqual(self.client.get(reverse("venues:plan"), {"ready": "garbage"}).status_code, 200)
+    def test_plan_api(self):
+        d = self.client.get("/api/app/plan/", {"ready": timezone.localdate().isoformat()}).json()
+        self.assertTrue(d["rows"])
+        self.assertTrue(all(r["slack_days"] >= 0 for r in d["rows"]))
+        self.assertEqual(self.client.get("/api/app/plan/", {"ready": "garbage"}).json()["rows"], [])
 
 
 class InsightsAndFeedTests(TestCase):
@@ -88,9 +90,7 @@ class InsightsAndFeedTests(TestCase):
         self.assertEqual(sum(n for _, n in d["by_type"]), d["totals"]["venues"])
 
     def test_insights_page(self):
-        r = self.client.get(reverse("venues:insights"))
-        self.assertContains(r, "insights-data")
-        self.assertContains(r, "venues/vendor/chart.umd.min.js")
+        self.assertContains(self.client.get(reverse("venues:insights")), "<title>Insights · VenuePulse</title>")
 
     def test_suggest(self):
         r = self.client.get(reverse("venues:api_suggest"), {"q": "neurips"}).json()["results"]
@@ -116,13 +116,20 @@ class InsightsAndFeedTests(TestCase):
         self.assertLessEqual(r.content.decode().count("<entry>"), 50)
 
     def test_api_docs(self):
-        self.assertContains(self.client.get(reverse("venues:api_docs")), "/api/v1/me/targets/")
+        self.assertContains(self.client.get(reverse("venues:api_docs")), "<title>API documentation · VenuePulse</title>")
+        meta = self.client.get("/api/app/api-meta/").json()
+        paths = [e["path"] for g in meta["groups"] for e in g["endpoints"]]
+        self.assertIn("/api/v1/me/targets/", paths)
+        self.assertIn("min_if", [f["name"] for f in meta["filters"]])
 
-    def test_palette_and_nav_present(self):
-        r = self.client.get(reverse("venues:list"))
-        self.assertContains(r, "Command palette")
-        for label in ("Recommend", "Planner", "Insights"):
-            self.assertContains(r, label)
+    def test_facets_and_home_payloads(self):
+        f = self.client.get("/api/app/facets/").json()
+        self.assertIn("Computer Vision", f["domains"])
+        self.assertIn({"value": "open", "label": "Open now"}, f["status"])
+        home = self.client.get("/api/app/home/").json()
+        self.assertEqual(home["stats"]["venues"], Venue.objects.count())
+        deadlines = [c["cycle"]["submission_deadline"] for c in home["closing_soon"]]
+        self.assertEqual(deadlines, sorted(deadlines))
 
 
 class TokenApiTests(TestCase):
@@ -172,13 +179,13 @@ class DetailPageExtrasTests(TestCase):
         call_command("seed_venues", verbosity=0)
 
     def test_related_venues(self):
-        r = self.client.get(reverse("venues:detail", args=["cvpr"]))
-        related = {v.acronym for v in r.context["related"]}
+        related = {v["acronym"] for v in self.client.get("/api/app/venues/cvpr/").json()["related"]}
         self.assertTrue({"ICCV", "ECCV"} & related, related)
         self.assertNotIn("CVPR", related)
 
-    def test_anonymous_sees_login_prompt_for_reviews(self):
-        self.assertContains(self.client.get(reverse("venues:detail", args=["cvpr"])), "to share your experience")
+    def test_reviews_require_login(self):
+        r = self.client.put("/api/app/venues/cvpr/review/", data=json.dumps({"rating": 5}), content_type="application/json")
+        self.assertEqual(r.status_code, 401)
 
 
 class ExploreUXTests(TestCase):
@@ -186,8 +193,8 @@ class ExploreUXTests(TestCase):
     def setUpTestData(cls):
         call_command("seed_venues", verbosity=0)
 
-    def get(self, **params):
-        return self.client.get(reverse("venues:list"), params, HTTP_HX_REQUEST="true")
+    def get(self, view="", **params):
+        return self.client.get(f"/api/app/explore/{view + '/' if view else ''}", params).json()
 
     def test_within_filter(self):
         from .filters import filter_venues
@@ -199,55 +206,40 @@ class ExploreUXTests(TestCase):
         self.assertLessEqual(filter_venues(_QD({"within": "7"})).count(), filter_venues(_QD({"within": "90"})).count())
 
     def test_active_filter_chips(self):
-        r = self.get(q="vision", core="A*", status="open", within="30", min_if="5", oa="1", tag="computer-vision")
-        labels = [c["label"] for c in r.context["chips"]]
+        d = self.get(q="vision", core="A*", status="open", within="30", min_if="5", oa="1", tag="computer-vision")
+        labels = [c["label"] for c in d["chips"]]
         for expected in ("“vision”", "CORE A*", "Open now", "Closing within 30 days", "IF ≥ 5", "Open access", "#Computer Vision"):
             self.assertIn(expected, labels)
-        self.assertContains(r, "Remove filter: CORE A*")
-        self.assertContains(r, "Clear all")
+        self.assertIn({"name": "core", "value": "A*", "label": "CORE A*"}, d["chips"])
 
     def test_no_chips_without_filters(self):
-        r = self.get()
-        self.assertEqual(r.context["chips"], [])
-        self.assertNotContains(r, "Clear all")
+        self.assertEqual(self.get()["chips"], [])
 
     def test_timeline_view(self):
-        r = self.get(view="timeline", type="Conference")
-        rows = list(r.context["page_obj"])
-        self.assertTrue(rows)
-        self.assertEqual(len(r.context["timeline"]["ticks"]), 12)
-        for row in rows:
+        d = self.get(view="timeline", type="Conference")
+        self.assertTrue(d["rows"])
+        self.assertEqual(len(d["ticks"]), 12)
+        for row in d["rows"]:
             for seg in row["segments"]:
                 self.assertTrue(0 <= seg["left"] <= 100 and seg["width"] > 0, seg)
-        keys = [row["sort_key"] for row in rows]
-        self.assertEqual(keys, sorted(keys))
-        self.assertContains(r, "Paper deadline")
+        self.assertTrue(any(m["label"] == "Paper deadline" for row in d["rows"] for m in row["markers"]))
 
     def test_timeline_hides_rolling_journals(self):
-        r = self.get(view="timeline", type="Journal")
-        self.assertGreater(r.context["rolling_hidden"], 0)
-        self.assertContains(r, "rolling-submission journal")
+        self.assertGreater(self.get(view="timeline", type="Journal")["rolling_hidden"], 0)
 
-    def test_table_has_sort_semantics(self):
-        r = self.get(view="table", sort="impact_factor", dir="desc")
-        self.assertContains(r, 'aria-sort="descending"')
-        self.assertContains(r, "<caption")
-
-    def test_full_page_has_hero_and_closing_soon(self):
-        r = self.client.get(reverse("venues:list"))
-        self.assertContains(r, "Closing soon")
-        self.assertEqual(r.context["stats"]["venues"], 113)
-        deadlines = [c.submission_deadline for c in r.context["closing_soon"]]
+    def test_home_closing_soon(self):
+        home = self.client.get("/api/app/home/").json()
+        self.assertEqual(home["stats"]["venues"], 113)
+        deadlines = [c["cycle"]["submission_deadline"] for c in home["closing_soon"]]
         self.assertEqual(deadlines, sorted(deadlines))
-        self.assertTrue(all(d >= timezone.now() - timedelta(minutes=1) for d in deadlines))
+        self.assertTrue(all(d >= (timezone.now() - timedelta(minutes=1)).isoformat() for d in deadlines))
 
     def test_tracker_counts_on_cards(self):
         from .models import Venue, VenueBookmark
 
         bob = User.objects.create_user("bob", "b@example.com", "pw-12345-xyz")
         VenueBookmark.objects.create(user=bob, venue=Venue.objects.get(slug="cvpr"))
-        r = self.get(q="cvpr")
-        self.assertContains(r, "1 tracking")
+        self.assertEqual(self.get(q="cvpr")["results"][0]["trackers"], 1)
 
     def test_facets_are_cached_and_invalidated(self):
         from .filters import facet_options
@@ -260,9 +252,9 @@ class ExploreUXTests(TestCase):
         self.assertIn("Atlantis", facet_options()["countries"])
         self.assertNotIn("Atlantis", before)
 
-    def test_bookmark_toggle_sends_toast(self):
-        r = self.client.post(reverse("venues:bookmark", args=["icml"]))
-        self.assertEqual(json.loads(r["HX-Trigger"])["toast"]["message"], "Saved ICML to My Targets")
+    def test_bookmark_toggle_returns_message(self):
+        r = self.client.post("/api/app/venues/icml/star/", data="{}", content_type="application/json")
+        self.assertEqual(r.json()["message"], "Saved ICML to My Targets")
 
 
 class _QD(dict):
@@ -296,46 +288,40 @@ class DetailSEOAndActionsTests(TestCase):
     def test_jsonld_is_escaped(self):
         from django.template import Context, Template
 
-        out = Template("{% jsonld d %}").render(Context({"d": {"name": "</script><script>alert(1)</script>"}}))
+        out = Template("{% load webapp %}{% jsonld d %}").render(Context({"d": {"name": "</script><script>alert(1)</script>"}}))
         self.assertNotIn("</script><script>", out)
         self.assertIn("\\u003C/script\\u003E", out)
 
     def test_meta_and_breadcrumb(self):
         r = self.client.get(reverse("venues:detail", args=["cvpr"]))
         self.assertContains(r, '<meta property="og:type" content="article">')
-        self.assertContains(r, 'aria-label="Breadcrumb"')
+        self.assertContains(r, '"@type": "BreadcrumbList"')
         self.assertContains(r, "CVPR 20")  # title contains the cycle year
+        self.assertContains(r, '<link rel="canonical" href="http://testserver/venue/cvpr/">')
 
     def test_calendar_links_and_stepper(self):
-        r = self.client.get(reverse("venues:detail", args=["cvpr"]))
-        links = r.context["calendar_links"]
+        d = self.client.get("/api/app/venues/cvpr/").json()
+        links = d["calendar_links"]
         self.assertTrue(links["google"].startswith("https://calendar.google.com/calendar/render?"))
         self.assertIn("action=TEMPLATE", links["google"])
         self.assertTrue(links["outlook"].startswith("https://outlook.live.com/calendar/"))
-        steps = r.context["steps"]
+        steps = d["steps"]
         self.assertEqual([s["label"] for s in steps][:2], ["Call opens", "Paper"])
         self.assertEqual(sum(1 for s in steps if s["state"] == "current"), 1)
         states = [s["state"] for s in steps]
         self.assertEqual(states, sorted(states, key=["done", "current", "upcoming"].index))
-        self.assertContains(r, 'aria-current="step"')
 
     def test_rolling_journal_has_no_calendar_links(self):
-        r = self.client.get(reverse("venues:detail", args=["nature"]))
-        self.assertEqual(r.context["calendar_links"], {})
-        self.assertContains(r, "Rolling submissions")
-        self.assertNotContains(r, "Add to calendar")
+        d = self.client.get("/api/app/venues/nature/").json()
+        self.assertEqual(d["calendar_links"], {})
+        self.assertTrue(d["is_rolling"])
 
     def test_tracking_count(self):
         from .models import Venue, VenueBookmark
 
         for name in ("u1", "u2"):
             VenueBookmark.objects.create(user=User.objects.create_user(name, f"{name}@x.com", "pw-12345-xyz"), venue=Venue.objects.get(slug="cvpr"))
-        self.assertContains(self.client.get(reverse("venues:detail", args=["cvpr"])), "2 researchers tracking")
-
-    def test_modal_quick_view(self):
-        r = self.client.get(reverse("venues:modal", args=["cvpr"]))
-        self.assertContains(r, "Open full page")
-        self.assertNotContains(r, "<html")
+        self.assertEqual(self.client.get("/api/app/venues/cvpr/").json()["tracking_count"], 2)
 
 
 class SnippetTests(TestCase):
@@ -383,8 +369,8 @@ class CompareTests(TestCase):
         call_command("seed_venues", verbosity=0)
 
     def rows(self, *slugs):
-        r = self.client.get(reverse("venues:compare"), {"s": list(slugs)})
-        return r, {row["key"]: row for row in r.context["rows"]}
+        d = self.client.get("/api/app/compare/", {"s": list(slugs)}).json()
+        return d, {row["key"]: row for row in d["rows"]}
 
     def test_best_values_are_flagged(self):
         r, rows = self.rows("cvpr", "iccv", "eccv")
@@ -392,20 +378,12 @@ class CompareTests(TestCase):
         self.assertEqual([c["best"] for c in rows["acceptance_rate"]["cells"]], [True, False, False])  # lowest rate = most selective
         self.assertEqual(sum(c["best"] for c in rows["next_deadline"]["cells"]), 1)
         self.assertFalse(any(c["best"] for c in rows["type"]["cells"]))
-        self.assertContains(r, "(best)")
+        self.assertEqual(rows["next_deadline"]["type"], "datetime")
+        self.assertEqual(rows["event"]["type"], "daterange")
 
     def test_ties_and_missing_values_are_not_flagged(self):
         _, rows = self.rows("cvpr", "nature")
         self.assertFalse(any(c["best"] for c in rows["impact_factor"]["cells"]), "only one venue has an IF")
-
-    def test_remove_links_on_full_page(self):
-        r, _ = self.rows("cvpr", "iccv")
-        self.assertEqual(r.context["remove_links"]["cvpr"], "?s=iccv")
-        self.assertContains(r, 'aria-label="Remove CVPR from comparison"')
-
-    def test_drawer_variant_uses_alpine_remove(self):
-        r = self.client.get(reverse("venues:compare"), {"s": ["cvpr", "iccv"]}, HTTP_HX_REQUEST="true")
-        self.assertContains(r, "$store.compare.toggle('cvpr'")
 
 
 class Round2FeatureTests(TestCase):
@@ -419,24 +397,20 @@ class Round2FeatureTests(TestCase):
         self.assertNotIn("X-Frame-Options", r)
         self.assertIn("frame-ancestors *", r["Content-Security-Policy"])
         self.assertIn("script-src 'self'", r["Content-Security-Policy"])
-        self.assertContains(r, 'class="dark"')
+        self.assertContains(r, 'data-theme="dark"')
+        self.assertContains(r, "/static/venues/js/embed.js")
         self.assertContains(r, "http://testserver/venue/cvpr/")
         self.assertIn("max-age=300", r["Cache-Control"])
         self.assertEqual(self.client.get(reverse("venues:detail", args=["cvpr"]))["X-Frame-Options"], "DENY")
 
-    def test_detail_page_offers_embed_code_and_records_recent(self):
-        r = self.client.get(reverse("venues:detail", args=["cvpr"]))
-        self.assertContains(r, "Embed a live countdown")
-        self.assertContains(r, "/embed/venue/cvpr/")
-        self.assertContains(r, "$store.recent.add(")
+    def test_detail_offers_embed_url(self):
+        d = self.client.get("/api/app/venues/cvpr/").json()
+        self.assertEqual(d["urls"]["embed"], "http://testserver/embed/venue/cvpr/")
+        self.assertEqual(d["urls"]["api"], "/api/venues/cvpr/")
 
     def test_about_and_privacy_pages(self):
-        about = self.client.get(reverse("about"))
-        self.assertContains(about, "Anywhere on Earth")
-        self.assertContains(about, "CORE rank")
-        privacy = self.client.get(reverse("privacy"))
-        self.assertContains(privacy, "sessionid")
-        self.assertContains(privacy, reverse("accounts:settings"))
+        self.assertContains(self.client.get(reverse("about")), "<title>About &amp; FAQ · VenuePulse</title>")
+        self.assertContains(self.client.get(reverse("privacy")), "<title>Privacy · VenuePulse</title>")
 
     def test_list_calendar_feed_visibility(self):
         from accounts.models import VenueList

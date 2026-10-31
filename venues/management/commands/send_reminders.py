@@ -14,8 +14,8 @@ from django.http import QueryDict
 from django.urls import reverse
 from django.utils import timezone
 
-from accounts.context_processors import site_base_url
 from accounts.models import Notification
+from config.site import site_base_url
 from venues.filters import filter_venues
 from venues.models import DeadlineCycle, VenueBookmark
 

@@ -8,7 +8,7 @@ from django.core.mail import send_mail
 from django.template.loader import render_to_string
 from django.urls import reverse
 
-from .context_processors import site_base_url
+from config.site import site_base_url
 
 SALT = "venuepulse.verify-email"
 MAX_AGE = 60 * 60 * 24 * 3  # three days

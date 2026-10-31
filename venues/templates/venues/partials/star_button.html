@@ -1,5 +1,0 @@
-<button type="button" id="star-{{ venue.slug }}" hx-post="{% url 'venues:bookmark' venue.slug %}" hx-target="this" hx-swap="outerHTML"
-        class="rounded-md p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 {% if starred %}text-amber-500{% else %}text-slate-400{% endif %}"
-        aria-label="{% if starred %}Remove {{ venue.acronym }} from target venues{% else %}Save {{ venue.acronym }} to target venues{% endif %}" aria-pressed="{{ starred|yesno:'true,false' }}">
-  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="{% if starred %}currentColor{% else %}none{% endif %}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-</button>

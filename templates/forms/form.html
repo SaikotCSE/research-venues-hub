@@ -1,3 +1,0 @@
-{% if errors %}<div class="mb-4 rounded-lg border border-rose-300 bg-rose-50 p-3 text-sm text-rose-800 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200" role="alert">{{ errors }}</div>{% endif %}
-<div class="space-y-4">{% for field, errors in fields %}{{ field.as_field_group }}{% endfor %}</div>
-{% for field in hidden_fields %}{{ field }}{% endfor %}

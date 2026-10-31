@@ -1,17 +1,13 @@
 from django.urls import path
 
-from . import views
+from webapp import views as pages
 
 app_name = "tracker"
 
+# Pages rendered by the React app; data lives under /api/app/tracker/.
 urlpatterns = [
-    path("", views.board, name="board"),
-    path("new/", views.submission_create, name="create"),
-    path("s/<int:pk>/", views.submission_detail, name="detail"),
-    path("s/<int:pk>/status/", views.submission_status, name="status"),
-    path("s/<int:pk>/delete/", views.submission_delete, name="delete"),
-    path("s/<int:pk>/checklist/add/", views.checklist_add, name="checklist_add"),
-    path("s/<int:pk>/checklist/<int:item_id>/toggle/", views.checklist_toggle, name="checklist_toggle"),
-    path("papers/", views.papers, name="papers"),
-    path("papers/<int:pk>/delete/", views.paper_delete, name="paper_delete"),
+    path("", pages.private_page("tracker_board"), name="board"),
+    path("new/", pages.private_page("tracker_new"), name="create"),
+    path("s/<int:pk>/", pages.submission_detail, name="detail"),
+    path("papers/", pages.private_page("tracker_papers"), name="papers"),
 ]
