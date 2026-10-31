@@ -6,7 +6,7 @@
   <h1 class="text-2xl font-bold tracking-tight sm:text-3xl">Where should I submit?</h1>
   <p class="muted mt-1 max-w-2xl">Paste a title, abstract or keywords. We match them against each venue’s topics and scope, weigh in rank, and favour calls that close soon.</p>
 </header>
-<form method="get" class="card mb-6 grid gap-4 p-5 lg:grid-cols-[1fr_14rem_12rem_auto] lg:items-end" x-data>
+<form method="get" class="card mb-6 grid grid-cols-1 gap-4 p-5 lg:grid-cols-[1fr_14rem_12rem_auto] lg:items-end" x-data>
   <div><label for="rec-text" class="label">Title, abstract or keywords</label>
     <textarea id="rec-text" name="text" rows="3" required class="input" placeholder="e.g. Self-supervised 3D segmentation of medical images with transformers">{{ text }}</textarea>
     {% if interests %}<p class="help">Or <button type="button" class="link" @click="document.getElementById('rec-text').value = '{{ interests|escapejs }}'">use your profile interests</button>.</p>{% endif %}</div>

@@ -9,7 +9,7 @@
   <div class="card p-4"><div class="text-3xl font-bold text-rose-600">{{ data.totals.closing_30d }}</div><div class="text-sm text-slate-500">Closing within 30 days</div></div>
   <div class="card p-4"><div class="text-3xl font-bold">{{ data.totals.cycles }}</div><div class="text-sm text-slate-500">Tracked cycles</div></div>
 </div>
-<div class="grid gap-4 lg:grid-cols-2">
+<div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
   <section class="card p-4"><h2 class="mb-2 font-semibold">Paper deadlines per month (next 12)</h2><div class="h-64"><canvas id="c-months" role="img" aria-label="Bar chart of paper deadlines per month for the next 12 months"></canvas></div></section>
   <section class="card p-4"><h2 class="mb-2 font-semibold">Venues by research domain</h2><div class="h-64"><canvas id="c-domain" role="img" aria-label="Horizontal bar chart of venue counts by research domain"></canvas></div></section>
   <section class="card p-4"><h2 class="mb-2 font-semibold">CORE ranks (conferences) &amp; quartiles (journals)</h2><div class="h-64"><canvas id="c-rank" role="img" aria-label="Bar chart of CORE ranks for conferences and quartiles for journals"></canvas></div></section>

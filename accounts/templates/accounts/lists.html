@@ -5,8 +5,8 @@
   <h1 class="text-2xl font-bold tracking-tight">My venue lists</h1>
   <p class="muted mt-1 text-sm">Group venues into shortlists — e.g. “Spring 2027 targets” — and share them publicly with co-authors.</p>
 </header>
-<div class="grid gap-6 lg:grid-cols-[1fr_22rem]">
-  <div class="grid content-start gap-3 sm:grid-cols-2">
+<div class="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_22rem]">
+  <div class="grid grid-cols-1 content-start gap-3 sm:grid-cols-2">
     {% for l in lists %}
     <a href="{% url 'accounts:list_detail' l.slug %}" class="card p-5 transition hover:-translate-y-0.5 hover:shadow-md">
       <div class="flex items-center gap-2"><h2 class="font-semibold">{{ l.name }}</h2>

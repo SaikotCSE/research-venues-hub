@@ -101,3 +101,22 @@ for (const url of ["/", "/?view=timeline", "/venue/cvpr/", "/recommend/?text=gra
     expect(problems).toEqual([]);
   });
 }
+
+test.describe("mobile layout", () => {
+  test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+
+  test("no page is wider than a phone screen", async ({ page }) => {
+    const anon = ["/", "/?view=table", "/?view=timeline", "/venue/cvpr/", "/recommend/?text=vision", "/insights/", "/api/docs/", "/about/"];
+    const authed = ["/accounts/", "/tracker/", "/targets/", "/accounts/settings/"];
+    const tooWide = [];
+    const check = async (url) => {
+      await page.goto(url);
+      const m = await page.evaluate(() => ({ scroll: document.documentElement.scrollWidth, layout: window.innerWidth }));
+      if (m.scroll > 391 || m.layout > 391) tooWide.push(`${url} (${m.scroll}px)`);
+    };
+    for (const url of anon) await check(url);
+    await login(page);
+    for (const url of authed) await check(url);
+    expect(tooWide).toEqual([]);
+  });
+});

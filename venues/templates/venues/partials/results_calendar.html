@@ -1,5 +1,5 @@
 <p class="muted mb-3 text-sm">Abstract, paper, notification and camera-ready dates for the next 12 months (UTC). Hover a date for the exact time.</p>
-<div class="grid gap-4 sm:grid-cols-2 2xl:grid-cols-3">
+<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 2xl:grid-cols-3">
   {% for m in months %}
   <section class="card p-4" aria-labelledby="month-{{ forloop.counter }}">
     <h3 id="month-{{ forloop.counter }}" class="mb-2 flex items-center justify-between font-semibold">{{ m.month|date:"F Y" }}

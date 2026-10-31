@@ -49,7 +49,7 @@
         {% icon "list" "h-5 w-5" %}</button>
       <a href="{% url 'venues:list' %}" class="flex items-center gap-2 font-bold tracking-tight" aria-label="VenuePulse home">
         <span class="grid h-8 w-8 place-items-center rounded-lg bg-brand-600 text-white shadow-sm">{% icon "activity" "h-5 w-5" %}</span>
-        <span class="text-lg">Venue<span class="text-brand-600 dark:text-brand-400">Pulse</span></span>
+        <span class="hidden text-lg sm:inline">Venue<span class="text-brand-600 dark:text-brand-400">Pulse</span></span>
       </a>
       <nav class="ml-4 hidden items-center gap-0.5 text-sm lg:flex" aria-label="Primary">
         {% for link in nav_links %}
@@ -139,7 +139,7 @@
   </main>
 
   <footer class="mt-8 border-t border-slate-200 bg-white text-sm dark:border-slate-800 dark:bg-slate-900">
-    <div class="mx-auto grid max-w-screen-2xl gap-8 px-4 py-10 sm:grid-cols-2 lg:grid-cols-5">
+    <div class="mx-auto grid grid-cols-1 max-w-screen-2xl gap-8 px-4 py-10 sm:grid-cols-2 lg:grid-cols-5">
       <div class="lg:col-span-2">
         <a href="{% url 'venues:list' %}" class="flex items-center gap-2 font-bold"><span class="grid h-7 w-7 place-items-center rounded-lg bg-brand-600 text-white">{% icon "activity" "h-4 w-4" %}</span>VenuePulse</a>
         <p class="muted mt-3 max-w-md text-xs leading-relaxed">Ranks, h5-indices, impact factors and acceptance rates are approximate. Deadlines marked <em>Projected</em> are extrapolated from previous editions — always confirm on the official venue website before submitting.</p>

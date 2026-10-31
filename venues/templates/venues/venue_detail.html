@@ -19,7 +19,7 @@
 <div class="card p-6">{% include "venues/partials/venue_header.html" %}</div>
 <div x-data x-init="$store.recent.add({ acronym: '{{ venue.acronym|escapejs }}', name: '{{ venue.name|escapejs }}', url: '{{ venue.get_absolute_url|escapejs }}', flag: '{{ venue.country_flag_emoji|escapejs }}' })" hidden></div>
 
-<div class="mt-6 grid gap-6 lg:grid-cols-[1fr_22rem]">
+<div class="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[1fr_22rem]">
   <div class="min-w-0 space-y-6">
     <!-- Deadlines -->
     <section class="card p-6" aria-labelledby="deadlines-h">
@@ -32,7 +32,7 @@
       {% if venue.is_rolling_submission %}
         <p class="mt-3 flex items-center gap-2 rounded-lg border border-violet-200 bg-violet-50 p-3 text-sm text-violet-900 dark:border-violet-400/20 dark:bg-violet-400/10 dark:text-violet-200">{% icon "infinity" "h-4 w-4" %}Rolling submissions — manuscripts are considered year-round.</p>
       {% else %}
-        <div class="mt-4 grid gap-4 md:grid-cols-[minmax(0,20rem)_1fr] md:items-start">
+        <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-[minmax(0,20rem)_1fr] md:items-start">
           {% if next_deadline %}{% include "venues/partials/countdown.html" with at=next_deadline.1 kind=next_deadline.0 projected=next_cycle.is_projected %}
           {% else %}<p class="muted rounded-lg border border-slate-200 p-3 text-sm dark:border-slate-700">No upcoming deadline recorded — the next call has not been announced yet.</p>{% endif %}
           <div>{% if next_cycle %}<p class="text-sm font-medium">{{ next_cycle }} · deadlines in {{ next_cycle.get_timezone_label_display }}</p>{% endif %}{% include "venues/partials/venue_stepper.html" %}</div>
@@ -83,12 +83,12 @@
     <!-- Submission guide -->
     <section class="card p-6" aria-labelledby="guide-h" x-data="copier">
       <h2 id="guide-h" class="text-lg font-semibold">Submission &amp; formatting guide</h2>
-      <ul class="mt-3 grid gap-2 text-sm sm:grid-cols-2">
+      <ul class="mt-3 grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
         {% for label, value in venue.checklist %}
         <li class="flex gap-2">{% icon "square-check" "mt-0.5 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" %}<span><strong>{{ label }}:</strong> {% if value|slice:":4" == "http" %}<a class="link break-all" href="{{ value }}" target="_blank" rel="noopener">{{ value }}</a>{% else %}{{ value }}{% endif %}</span></li>
         {% endfor %}
       </ul>
-      <div class="mt-5 grid gap-3 md:grid-cols-2">
+      <div class="mt-5 grid grid-cols-1 gap-3 md:grid-cols-2">
         <div>
           <div class="mb-1 flex items-center justify-between"><h3 class="text-sm font-semibold">LaTeX preamble</h3>
             <button type="button" class="btn-ghost py-0.5 text-xs" @click="copy($refs.latex.textContent)">{% icon "copy" "h-3.5 w-3.5" %}Copy</button></div>
@@ -130,7 +130,7 @@
       <details class="mt-4 rounded-lg border border-slate-200 p-4 dark:border-slate-700" {% if not my_review %}open{% endif %}>
         <summary class="cursor-pointer font-medium">{% if my_review %}Update your experience{% else %}Share your experience{% endif %}</summary>
         <form method="post" action="{% url 'community:review' venue.slug %}" class="mt-3" novalidate>{% csrf_token %}
-          <div class="grid gap-x-4 sm:grid-cols-2">{{ review_form }}</div>
+          <div class="grid grid-cols-1 gap-x-4 sm:grid-cols-2">{{ review_form }}</div>
           <button class="btn-primary mt-4">Save experience</button>
         </form>
       </details>

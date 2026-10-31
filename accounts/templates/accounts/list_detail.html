@@ -20,7 +20,7 @@
   </div>
 </header>
 {% if venues %}
-<div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+<div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
   {% for venue in venues %}
   <div class="flex flex-col">{% include "venues/partials/venue_card.html" %}
     {% if owner %}<form method="post" action="{% url 'accounts:list_toggle' lst.slug venue.slug %}" class="mt-1 text-right">{% csrf_token %}<button class="btn-ghost py-1 text-xs">{% icon "x" "h-3.5 w-3.5" %}Remove from list</button></form>{% endif %}

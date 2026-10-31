@@ -10,11 +10,11 @@
   </div>
   {% if sub.target_deadline %}<div class="w-full max-w-xs">{% include "venues/partials/countdown.html" with at=sub.target_deadline kind="Paper" projected=sub.cycle.is_projected %}</div>{% endif %}
 </header>
-<div class="grid gap-6 lg:grid-cols-[1fr_24rem]">
+<div class="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_24rem]">
   <section class="card p-6" aria-labelledby="edit-h">
     <h2 id="edit-h" class="font-semibold">Details</h2>
     <form method="post" class="mt-4" novalidate>{% csrf_token %}
-      <div class="grid gap-x-4 sm:grid-cols-2 [&>div]:mb-0">{{ form }}</div>
+      <div class="grid grid-cols-1 gap-x-4 sm:grid-cols-2 [&>div]:mb-0">{{ form }}</div>
       <div class="mt-6 flex flex-wrap items-center gap-2">
         <button class="btn-primary">Save changes</button>
         <a class="btn-secondary" href="{{ sub.venue.get_absolute_url }}">{% icon "external-link" "h-4 w-4" %}Venue guide</a>

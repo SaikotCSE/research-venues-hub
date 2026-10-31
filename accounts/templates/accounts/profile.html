@@ -5,7 +5,7 @@
   <h1 class="text-2xl font-bold tracking-tight">Profile &amp; integrations</h1>
   <p class="muted mt-1 text-sm">Personalise recommendations and reminders, and connect your calendar or scripts. Sign-in details are under <a class="link" href="{% url 'accounts:settings' %}">account settings</a>.</p>
 </header>
-<div class="grid gap-6 lg:grid-cols-[1.2fr_1fr]">
+<div class="grid grid-cols-1 gap-6 lg:grid-cols-[1.2fr_1fr]">
   <section class="card p-6" aria-labelledby="profile-h">
     <h2 id="profile-h" class="font-semibold">Profile &amp; reminders</h2>
     <form method="post" class="mt-4" novalidate>{% csrf_token %}

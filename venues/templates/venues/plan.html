@@ -6,7 +6,7 @@
   <h1 class="text-2xl font-bold tracking-tight sm:text-3xl">Deadline planner</h1>
   <p class="muted mt-1 max-w-2xl">Tell us when your paper will be ready and we’ll list every deadline you can still make in the following nine months — with the days of slack you’ll have.</p>
 </header>
-<form method="get" class="card mb-6 grid gap-4 p-5 sm:grid-cols-2 lg:grid-cols-[repeat(3,minmax(0,1fr))_auto] lg:items-end">
+<form method="get" class="card mb-6 grid grid-cols-1 gap-4 p-5 sm:grid-cols-2 lg:grid-cols-[repeat(3,minmax(0,1fr))_auto] lg:items-end">
   <div><label for="ready" class="label">Paper ready on</label>
     <input id="ready" type="date" name="ready" required min="{{ today|date:'Y-m-d' }}" value="{% if raw %}{{ raw }}{% else %}{{ today|date:'Y-m-d' }}{% endif %}" class="input"></div>
   <div><label for="plan-domain" class="label">Research domain</label>
@@ -53,7 +53,7 @@
   </div>
   {% endif %}
 {% else %}
-  <div class="grid gap-4 sm:grid-cols-3">
+  <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
     {% for title, body in tips %}<div class="card p-5"><h2 class="font-semibold">{{ title }}</h2><p class="muted mt-1 text-sm">{{ body }}</p></div>{% endfor %}
   </div>
 {% endif %}

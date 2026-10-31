@@ -34,7 +34,7 @@
     </div>
   </section>
 
-  <section class="mt-10 grid gap-4 sm:grid-cols-3" aria-label="Get involved">
+  <section class="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-3" aria-label="Get involved">
     <a href="{% url 'venues:list' %}" class="card p-5 transition hover:shadow-md">{% icon "search" "h-5 w-5 text-brand-600 dark:text-brand-400" %}<h3 class="mt-2 font-semibold">Explore venues</h3><p class="muted mt-1 text-sm">Filter by rank, topic, location and deadline.</p></a>
     <a href="{% url 'venues:api_docs' %}" class="card p-5 transition hover:shadow-md">{% icon "code" "h-5 w-5 text-brand-600 dark:text-brand-400" %}<h3 class="mt-2 font-semibold">Use the API</h3><p class="muted mt-1 text-sm">JSON, iCal and Atom feeds for your own tools.</p></a>
     <a href="{% url 'privacy' %}" class="card p-5 transition hover:shadow-md">{% icon "shield-check" "h-5 w-5 text-brand-600 dark:text-brand-400" %}<h3 class="mt-2 font-semibold">Privacy</h3><p class="muted mt-1 text-sm">What we store, and how to export or delete it.</p></a>

@@ -15,7 +15,7 @@
 {% if not onboarding_done %}
 <section class="card mb-6 border-brand-200 bg-gradient-to-br from-brand-50 to-white p-5 dark:border-brand-500/30 dark:from-brand-500/10 dark:to-slate-900" aria-labelledby="onboarding-h">
   <h2 id="onboarding-h" class="font-semibold">Get the most out of VenuePulse</h2>
-  <ol class="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+  <ol class="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
     {% for label, done, url in onboarding %}
     <li><a href="{{ url }}" class="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm {% if done %}border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-100{% else %}border-slate-200 bg-white hover:border-brand-300 dark:border-slate-700 dark:bg-slate-900{% endif %}">
       <span class="grid h-5 w-5 shrink-0 place-items-center rounded-full text-[11px] font-bold {% if done %}bg-emerald-600 text-white{% else %}bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200{% endif %}" aria-hidden="true">{% if done %}✓{% else %}{{ forloop.counter }}{% endif %}</span>
@@ -32,7 +32,7 @@
   <a href="{% url 'accounts:lists' %}" class="card p-4 transition hover:shadow-md"><span class="muted block text-xs">Venue lists</span><span class="tnum block text-3xl font-bold">{{ lists|length }}</span></a>
 </div>
 
-<div class="grid gap-6 lg:grid-cols-3">
+<div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
   <section class="card p-5 lg:col-span-2" aria-labelledby="upcoming-h">
     <h2 id="upcoming-h" class="mb-3 flex items-center gap-2 font-semibold">{% icon "clock" "h-4 w-4 text-slate-500" %}Your next 120 days</h2>
     {% if cycles %}

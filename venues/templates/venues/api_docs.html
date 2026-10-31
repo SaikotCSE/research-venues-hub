@@ -2,7 +2,7 @@
 {% block title %}API documentation · VenuePulse{% endblock %}
 {% block meta_description %}VenuePulse JSON API: venues, ranks, deadlines, insights and personal targets. Pagination, ETags, CORS, rate limits and an OpenAPI 3.1 schema.{% endblock %}
 {% block content %}
-<div class="grid gap-8 lg:grid-cols-[14rem_1fr]">
+<div class="grid grid-cols-1 gap-8 lg:grid-cols-[14rem_1fr]">
   <nav class="hidden lg:block" aria-label="On this page">
     <ul class="sticky top-24 space-y-1 text-sm">
       {% for anchor, label in toc %}<li><a class="muted block rounded px-2 py-1 hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-slate-800 dark:hover:text-white" href="#{{ anchor }}">{{ label }}</a></li>{% endfor %}
@@ -67,7 +67,7 @@ results.forEach(v =&gt; console.log(v.acronym, v.next_deadline?.at));</pre>
 
     <section id="conventions" aria-labelledby="conv-h">
       <h2 id="conv-h" class="text-xl font-semibold">Conventions</h2>
-      <dl class="mt-3 grid gap-4 text-sm sm:grid-cols-2">
+      <dl class="mt-3 grid grid-cols-1 gap-4 text-sm sm:grid-cols-2">
         <div class="card p-4"><dt class="font-semibold">Pagination</dt><dd class="muted mt-1">Lists return <code>count</code>, <code>page</code>, <code>num_pages</code>, <code>page_size</code> (1–200, default 25) and absolute <code>next</code>/<code>previous</code> links.</dd></div>
         <div class="card p-4"><dt class="font-semibold">Errors</dt><dd class="muted mt-1">Always JSON: <code>{"error": "…"}</code> with status 400, 401, 404, 405 or 429.</dd></div>
         <div class="card p-4"><dt class="font-semibold">Caching</dt><dd class="muted mt-1">Public endpoints send a weak <code>ETag</code> and <code>Cache-Control: max-age=300</code>; repeat requests with <code>If-None-Match</code> get <code>304 Not Modified</code>.</dd></div>

@@ -32,7 +32,7 @@
     </div>
   </div>
 {% elif view_mode == "grid" %}
-  <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+  <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
     {% for venue in page_obj %}{% include "venues/partials/venue_card.html" %}{% endfor %}
   </div>
   {% include "venues/partials/pagination.html" %}

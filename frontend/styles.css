@@ -67,3 +67,8 @@ input[aria-invalid="true"], select[aria-invalid="true"], textarea[aria-invalid="
 /* Native form controls follow the theme */
 .dark { color-scheme: dark; }
 input[type="checkbox"], input[type="radio"], input[type="range"] { accent-color: theme("colors.brand.600"); }
+
+/* Scroll containers must contain absolutely-positioned descendants (e.g. .sr-only labels): otherwise those escape
+   the overflow clip and widen the whole page on mobile. :where() keeps specificity at zero so explicit
+   .absolute/.fixed utilities still win. */
+:where(.overflow-auto, .overflow-x-auto, .overflow-y-auto) { position: relative; }
