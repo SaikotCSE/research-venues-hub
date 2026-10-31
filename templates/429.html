@@ -1,0 +1,5 @@
+{% extends "error_base.html" %}
+{% block title %}Slow down · VenuePulse{% endblock %}
+{% block code %}429{% endblock %}
+{% block heading %}Too many requests{% endblock %}
+{% block message %}You’ve made a lot of requests in a short time. Please wait {{ retry_after|default:"a few" }} seconds and try again.{% endblock %}

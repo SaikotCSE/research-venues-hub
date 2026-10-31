@@ -18,7 +18,7 @@
 </div>
 {% else %}
 <div class="rounded-xl border border-dashed border-slate-300 p-10 text-center text-slate-500 dark:border-slate-700">
-  <i data-lucide="star" class="mx-auto mb-2 h-8 w-8"></i>
+  {% icon "star" "mx-auto mb-2 h-8 w-8" %}
   You haven't saved any venues yet. Click the star on any venue to add it here.
   <div class="mt-3"><a class="text-brand-600 underline dark:text-brand-500" href="{% url 'venues:list' %}">Explore venues</a></div>
 </div>

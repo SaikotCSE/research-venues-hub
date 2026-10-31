@@ -11,3 +11,7 @@ media/
 .env*
 *.log
 .DS_Store
+node_modules/
+.coverage
+htmlcov/
+.ruff_cache/

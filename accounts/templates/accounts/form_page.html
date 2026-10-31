@@ -1,18 +1,16 @@
 {% extends "venues/base.html" %}
 {% block title %}{{ title }} · VenuePulse{% endblock %}
 {% block content %}
-<div class="mx-auto max-w-lg rounded-2xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900">
-  <h1 class="mb-1 text-xl font-bold">{{ title }}</h1>
-  {% if intro %}<p class="mb-3 text-sm text-slate-500">{{ intro }}</p>{% endif %}
-  <form method="post" class="space-y-3">{% csrf_token %}
-    {{ form.non_field_errors }}
-    {% for f in form %}
-    <div><label for="{{ f.id_for_label }}" class="mb-1 block text-sm font-medium">{{ f.label }}</label>{{ f }}
-      {% if f.help_text %}<p class="mt-0.5 text-xs text-slate-500">{{ f.help_text }}</p>{% endif %}
-      {% for e in f.errors %}<p class="mt-0.5 text-xs text-rose-600">{{ e }}</p>{% endfor %}</div>
-    {% endfor %}
-    <button class="w-full rounded-lg bg-brand-600 py-2 font-medium text-white hover:bg-brand-700">{{ submit|default:"Save" }}</button>
-  </form>
-  {% block form_footer %}{% endblock %}
+<div class="mx-auto max-w-xl">
+  {% if back_url %}<a href="{{ back_url }}" class="muted mb-3 inline-flex items-center gap-1 text-sm hover:underline">{% icon "arrow-left" "h-4 w-4" %}Back</a>{% endif %}
+  <div class="card p-6 sm:p-8">
+    <h1 class="text-xl font-bold tracking-tight">{{ title }}</h1>
+    {% if intro %}<p class="muted mt-1 text-sm">{{ intro }}</p>{% endif %}
+    <form method="post" class="mt-6" novalidate>{% csrf_token %}
+      {{ form }}
+      <button class="btn-primary mt-6 w-full py-2.5">{{ submit|default:"Save" }}</button>
+    </form>
+    {% block form_footer %}{% endblock %}
+  </div>
 </div>
 {% endblock %}

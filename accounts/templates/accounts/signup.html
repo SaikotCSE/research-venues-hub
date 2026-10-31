@@ -1,0 +1,12 @@
+{% extends "accounts/auth_base.html" %}
+{% block title %}Create your account · VenuePulse{% endblock %}
+{% block heading %}Create your account{% endblock %}
+{% block intro %}<p class="muted mt-1 text-sm">Free forever. Anything you starred before signing up is kept.</p>{% endblock %}
+{% block form %}
+<form method="post" novalidate>{% csrf_token %}
+  {{ form }}
+  <input type="hidden" name="next" value="{{ next }}">
+  <button class="btn-primary mt-6 w-full py-2.5">Create account</button>
+</form>
+{% endblock %}
+{% block below %}<p class="muted mt-6 text-center text-sm">Already have an account? <a class="link" href="{% url 'accounts:login' %}">Log in</a></p>{% endblock %}

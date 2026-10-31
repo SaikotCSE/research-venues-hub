@@ -9,7 +9,7 @@
   <select name="domain" class="rounded-lg border border-slate-300 bg-white p-2 text-sm text-slate-800 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"><option value="">Any domain</option>{% for d in domains %}<option {% if d == domain %}selected{% endif %}>{{ d }}</option>{% endfor %}</select>
   <select name="type" class="rounded-lg border border-slate-300 bg-white p-2 text-sm text-slate-800 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"><option value="">Any type</option>{% for v, l in type_choices %}<option value="{{ v }}" {% if v == vtype %}selected{% endif %}>{{ l }}</option>{% endfor %}</select>
   <button class="rounded-lg bg-brand-600 px-5 text-white hover:bg-brand-700">Recommend</button>
-  {% if interests %}<p class="text-xs text-slate-500 md:col-span-4">Tip: your profile interests — <button type="button" class="underline" onclick="document.querySelector('[name=text]').value='{{ interests|escapejs }}'">use them</button></p>{% endif %}
+  {% if interests %}<p class="text-xs text-slate-500 md:col-span-4">Tip: your profile interests — <button type="button" class="underline" x-data @click="document.querySelector('[name=text]').value = '{{ interests|escapejs }}'">use them</button></p>{% endif %}
 </form>
 {% if searched %}
   {% if results %}

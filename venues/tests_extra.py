@@ -90,7 +90,7 @@ class InsightsAndFeedTests(TestCase):
     def test_insights_page(self):
         r = self.client.get(reverse("venues:insights"))
         self.assertContains(r, "insights-data")
-        self.assertContains(r, "chart.js@4.4.1")
+        self.assertContains(r, "venues/vendor/chart.umd.min.js")
 
     def test_suggest(self):
         r = self.client.get(reverse("venues:api_suggest"), {"q": "neurips"}).json()["results"]

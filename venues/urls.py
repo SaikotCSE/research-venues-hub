@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import views, views_extra
+from . import openapi, views, views_extra
 
 app_name = "venues"
 
@@ -21,6 +21,7 @@ urlpatterns = [
     path("calendar.ics", views_extra.calendar_filtered, name="calendar_filtered"),
     path("feed/deadlines.atom", views_extra.DeadlineFeed(), name="atom_feed"),
     path("api/docs/", views_extra.api_docs, name="api_docs"),
+    path("api/openapi.json", openapi.openapi_schema, name="openapi"),
     path("api/insights/", views_extra.api_insights, name="api_insights"),
     path("api/suggest/", views_extra.api_suggest, name="api_suggest"),
     path("api/v1/me/", views_extra.api_me, name="api_me"),

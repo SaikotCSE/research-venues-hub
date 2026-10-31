@@ -12,14 +12,14 @@
     <!-- Filters -->
     <aside>
       <button type="button" class="mb-3 flex w-full items-center justify-between rounded-lg border border-slate-300 px-3 py-2 text-sm lg:hidden dark:border-slate-700" @click="filtersOpen = !filtersOpen">
-        <span><i data-lucide="sliders-horizontal" class="mr-1 inline h-4 w-4"></i>Filters</span><span x-text="filtersOpen ? 'Hide' : 'Show'"></span>
+        <span>{% icon "sliders-horizontal" "mr-1 inline h-4 w-4" %}Filters</span><span x-text="filtersOpen ? 'Hide' : 'Show'"></span>
       </button>
       <form id="filters" :class="filtersOpen ? '' : 'hidden lg:block'"
             hx-get="{% url 'venues:list' %}" hx-target="#results" hx-push-url="true" hx-trigger="change, input changed delay:250ms from:#q, submit" hx-indicator="#results"
-            class="space-y-4 rounded-xl border border-slate-200 bg-white p-4 text-sm dark:border-slate-800 dark:bg-slate-900" onsubmit="return false">
+            class="space-y-4 rounded-xl border border-slate-200 bg-white p-4 text-sm dark:border-slate-800 dark:bg-slate-900" @submit.prevent>
         <div>
           <label for="q" class="sr-only">Search</label>
-          <div class="relative"><i data-lucide="search" class="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-slate-400"></i>
+          <div class="relative">{% icon "search" "pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" %}
           <input id="q" name="q" type="search" value="{{ params.q }}" placeholder="Search name, acronym, topic…" autocomplete="off"
                  class="w-full rounded-lg border border-slate-300 bg-transparent py-2 pl-8 pr-2 dark:border-slate-700"></div>
         </div>
@@ -98,7 +98,7 @@
         <button type="button" role="tab" :aria-selected="view === '{{ key }}'"
                 @click="view = '{{ key }}'; document.getElementById('view-input').value = '{{ key }}'; htmx.trigger('#filters', 'change')"
                 :class="view === '{{ key }}' ? 'bg-brand-600 text-white' : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'"
-                class="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm"><i data-lucide="{{ icon }}" class="h-4 w-4"></i>{{ label }}</button>
+                class="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm">{% icon icon "h-4 w-4" %}{{ label }}</button>
         {% endfor %}
       </div>
       <div id="results">{% include "venues/partials/results.html" %}</div>

@@ -1,2 +1,12 @@
-{% extends "accounts/form_page.html" %}
-{% block form_footer %}<p class="mt-4 text-center text-sm text-slate-500">New here? <a class="text-brand-600 underline dark:text-indigo-300" href="{% url 'accounts:signup' %}">Create an account</a></p>{% endblock %}
+{% extends "accounts/auth_base.html" %}
+{% block title %}Log in · VenuePulse{% endblock %}
+{% block intro %}<p class="muted mt-1 text-sm">Log in to sync your targets, tracker and reminders.</p>{% endblock %}
+{% block form %}
+<form method="post" novalidate>{% csrf_token %}
+  {{ form }}
+  <input type="hidden" name="next" value="{{ next }}">
+  <div class="mt-2 text-right"><a class="link text-sm" href="{% url 'accounts:password_reset' %}">Forgot your password?</a></div>
+  <button class="btn-primary mt-4 w-full py-2.5">Log in</button>
+</form>
+{% endblock %}
+{% block below %}<p class="muted mt-6 text-center text-sm">New to VenuePulse? <a class="link" href="{% url 'accounts:signup' %}{% if next %}?next={{ next|urlencode }}{% endif %}">Create a free account</a></p>{% endblock %}

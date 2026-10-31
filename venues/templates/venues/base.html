@@ -1,129 +1,252 @@
 {% load static %}<!doctype html>
-<html lang="en" class="scroll-smooth">
+<html lang="en" class="h-full scroll-smooth">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}VenuePulse · Research Venues &amp; Deadlines Hub{% endblock %}</title>
-  <meta name="description" content="Search, filter, compare and track conference and journal deadlines worldwide, with live countdowns in your timezone and AoE.">
-  <script>
-    try {
-      var t = localStorage.getItem('vp-theme');
-      if (t === 'dark' || (!t && window.matchMedia('(prefers-color-scheme: dark)').matches)) document.documentElement.classList.add('dark');
-    } catch (e) {}
+  <meta name="description" content="{% block meta_description %}Search, filter, compare and track conference and journal deadlines worldwide, with live countdowns in your timezone and AoE.{% endblock %}">
+  <link rel="canonical" href="{{ canonical_url }}">
+  <meta property="og:site_name" content="VenuePulse">
+  <meta property="og:type" content="{% block og_type %}website{% endblock %}">
+  <meta property="og:title" content="{% block og_title %}VenuePulse · Research Venues & Deadlines Hub{% endblock %}">
+  <meta property="og:description" content="{% block og_description %}Live countdowns, ranks and formatting rules for conferences and journals worldwide.{% endblock %}">
+  <meta property="og:url" content="{{ canonical_url }}">
+  <meta property="og:image" content="{{ site_url }}{% static 'venues/img/og-image.jpg' %}">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="theme-color" content="#4f46e5">
+  <link rel="icon" href="{% static 'venues/img/favicon.svg' %}" type="image/svg+xml">
+  <link rel="icon" href="{% static 'venues/img/favicon-32.png' %}" sizes="32x32" type="image/png">
+  <link rel="apple-touch-icon" href="{% static 'venues/img/apple-touch-icon.png' %}">
+  <link rel="manifest" href="{% url 'manifest' %}">
+  <link rel="alternate" type="application/atom+xml" title="Upcoming deadlines" href="{% url 'venues:atom_feed' %}">
+  <script nonce="{{ csp_nonce }}">
+    (function () {
+      try {
+        var t = localStorage.getItem('vp-theme') || 'system';
+        var dark = t === 'dark' || (t === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        if (dark) document.documentElement.classList.add('dark');
+      } catch (e) {}
+    })();
   </script>
-  <script src="https://cdn.tailwindcss.com/3.4.16"></script>
-  <script>
-    tailwind.config = { darkMode: 'class', theme: { extend: { colors: { brand: { 50:'#eef2ff',100:'#e0e7ff',500:'#6366f1',600:'#4f46e5',700:'#4338ca' } } } } };
-  </script>
-  <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
-  <script src="https://unpkg.com/htmx.org@2.0.4/dist/htmx.min.js"></script>
-  <script defer src="{% static 'venues/app.js' %}"></script>
-  <script defer src="https://unpkg.com/alpinejs@3.14.8/dist/cdn.min.js"></script>
-  <style>
-    [x-cloak]{display:none!important}
-    .htmx-request #spinner,#spinner.htmx-request{opacity:1}
-    #results{transition:opacity .15s}
-    #results.htmx-request{opacity:.55}
-    .tnum{font-variant-numeric:tabular-nums}
-  </style>
+  <meta name="htmx-config" content='{"includeIndicatorStyles": false, "allowEval": false, "historyCacheSize": 20, "selfRequestsOnly": true}'>
+  <link rel="stylesheet" href="{% static 'venues/css/app.css' %}">
+  <script defer src="{% static 'venues/vendor/htmx.min.js' %}"></script>
+  <script defer src="{% static 'venues/js/app.js' %}"></script>
+  <script defer src="{% static 'venues/vendor/alpine.min.js' %}"></script>
+  {% block extra_head %}{% endblock %}
 </head>
-<body class="min-h-screen bg-slate-50 text-slate-800 dark:bg-slate-950 dark:text-slate-200 antialiased"
-      hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}' x-data>
-  <header class="sticky top-0 z-30 border-b border-slate-200 bg-white/80 backdrop-blur dark:border-slate-800 dark:bg-slate-900/80">
-    <div class="mx-auto flex max-w-screen-2xl items-center gap-3 px-4 py-3">
-      <a href="{% url 'venues:list' %}" class="flex items-center gap-2 font-bold tracking-tight">
-        <span class="grid h-8 w-8 place-items-center rounded-lg bg-brand-600 text-white"><i data-lucide="activity" class="h-5 w-5"></i></span>
-        <span class="text-lg">Venue<span class="text-brand-600 dark:text-brand-500">Pulse</span></span>
+<body class="flex min-h-full flex-col" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'
+      data-user-tz="{% if user.is_authenticated %}{{ user.profile.timezone }}{% endif %}"
+      data-authenticated="{{ user.is_authenticated|yesno:'1,0' }}"
+      data-tz-url="{% url 'accounts:set_timezone' %}"
+      data-icons="{% static 'venues/img/icons.svg' %}"
+      x-data>
+  <a href="#main" class="sr-only z-[80] rounded-lg bg-brand-600 px-4 py-2 text-white focus:not-sr-only focus:fixed focus:left-4 focus:top-4">Skip to content</a>
+
+  <header class="sticky top-0 z-30 border-b border-slate-200 bg-white/85 backdrop-blur dark:border-slate-800 dark:bg-slate-900/85" x-data="{ menu: false }" @keydown.escape="menu = false">
+    <div class="mx-auto flex max-w-screen-2xl items-center gap-2 px-4 py-2.5">
+      <button type="button" class="btn-ghost -ml-2 p-2 lg:hidden" @click="menu = !menu" :aria-expanded="menu.toString()" aria-controls="mobile-nav" aria-label="Open menu">
+        {% icon "list" "h-5 w-5" %}</button>
+      <a href="{% url 'venues:list' %}" class="flex items-center gap-2 font-bold tracking-tight" aria-label="VenuePulse home">
+        <span class="grid h-8 w-8 place-items-center rounded-lg bg-brand-600 text-white shadow-sm">{% icon "activity" "h-5 w-5" %}</span>
+        <span class="text-lg">Venue<span class="text-brand-600 dark:text-brand-400">Pulse</span></span>
       </a>
-      <nav class="ml-4 hidden items-center gap-0.5 text-sm lg:flex">
-        {% for url, label in nav_links %}<a href="{{ url }}" class="rounded-md px-2.5 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-800">{{ label }}</a>{% endfor %}
+      <nav class="ml-4 hidden items-center gap-0.5 text-sm lg:flex" aria-label="Primary">
+        {% for link in nav_links %}
+        <a href="{{ link.url }}" class="rounded-md px-2.5 py-1.5 {% if link.active %}bg-brand-50 font-semibold text-brand-700 dark:bg-brand-500/15 dark:text-brand-200{% else %}text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800{% endif %}"{% if link.active %} aria-current="page"{% endif %}>{{ link.label }}</a>
+        {% endfor %}
       </nav>
-      <div class="ml-auto flex items-center gap-2">
-        <button type="button" @click="$dispatch('open-palette')" class="hidden items-center gap-2 rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-500 hover:bg-slate-100 md:inline-flex dark:border-slate-700 dark:hover:bg-slate-800" aria-label="Open command palette">
-          <i data-lucide="search" class="h-4 w-4"></i>Search<kbd class="rounded bg-slate-100 px-1.5 text-xs dark:bg-slate-800">Ctrl K</kbd></button>
-        <button type="button" @click="$store.compare.show()" class="relative inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-800">
-          <i data-lucide="columns-3" class="h-4 w-4"></i><span class="hidden sm:inline">Compare</span>
+      <div class="ml-auto flex items-center gap-1.5">
+        <button type="button" @click="$dispatch('open-palette')" class="btn-secondary hidden text-slate-600 md:inline-flex dark:text-slate-300" aria-label="Search venues and pages (Ctrl+K)">
+          {% icon "search" "h-4 w-4" %}<span>Search</span><kbd class="kbd">Ctrl K</kbd></button>
+        <button type="button" @click="$store.compare.show()" class="btn-secondary relative" aria-label="Open comparison drawer">
+          {% icon "columns-3" "h-4 w-4" %}<span class="hidden sm:inline">Compare</span>
           <span x-show="$store.compare.items.length" x-cloak class="rounded-full bg-brand-600 px-1.5 text-xs text-white" x-text="$store.compare.items.length"></span>
         </button>
+
+        <!-- Display settings: theme + timezone -->
+        <div class="relative" x-data="{ o: false }" @click.outside="o = false" @keydown.escape.stop="o = false">
+          <button type="button" class="btn-secondary btn-icon" @click="o = !o" :aria-expanded="o.toString()" aria-haspopup="true" aria-label="Display settings: theme and timezone">
+            <span x-show="!$store.theme.dark">{% icon "sun" "h-4 w-4" %}</span><span x-show="$store.theme.dark" x-cloak>{% icon "moon" "h-4 w-4" %}</span>
+          </button>
+          <div x-show="o" x-cloak x-transition.origin.top.right class="absolute right-0 mt-2 w-72 rounded-xl border border-slate-200 bg-white p-3 text-sm shadow-xl dark:border-slate-700 dark:bg-slate-900">
+            <p class="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">Theme</p>
+            <div class="grid grid-cols-3 gap-1" role="radiogroup" aria-label="Theme">
+              <template x-for="m in ['light', 'dark', 'system']" :key="m">
+                <button type="button" role="radio" :aria-checked="($store.theme.mode === m).toString()" @click="$store.theme.set(m)"
+                        class="rounded-lg border px-2 py-1.5 capitalize" :class="$store.theme.mode === m ? 'border-brand-600 bg-brand-50 font-semibold text-brand-700 dark:bg-brand-500/15 dark:text-brand-200' : 'border-slate-300 dark:border-slate-700'" x-text="m"></button>
+              </template>
+            </div>
+            <label for="tz-select" class="mb-1.5 mt-3 block text-xs font-semibold uppercase tracking-wide text-slate-500">Show times in</label>
+            <select id="tz-select" class="input py-1.5" x-model="$store.tz.zone" @change="$store.tz.set($event.target.value)">
+              <template x-for="z in $store.tz.options()" :key="z"><option :value="z" x-text="z" :selected="z === $store.tz.zone"></option></template>
+            </select>
+            <p class="help">Countdowns always show AoE (UTC−12) too.{% if user.is_authenticated %} Saved to your profile.{% endif %}</p>
+          </div>
+        </div>
+
         {% if user.is_authenticated %}
-        <a href="{% url 'accounts:notifications' %}" class="relative rounded-lg border border-slate-300 p-2 hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-800" aria-label="Notifications">
-          <i data-lucide="bell" class="h-4 w-4"></i>{% if unread_count %}<span class="absolute -right-1 -top-1 rounded-full bg-rose-600 px-1.5 text-[10px] font-bold text-white">{{ unread_count }}</span>{% endif %}</a>
-        <div class="relative" x-data="{ o: false }" @click.outside="o = false">
-          <button type="button" @click="o = !o" class="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1.5 text-sm hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-800"><i data-lucide="user" class="h-4 w-4"></i><span class="hidden sm:inline">{{ user.profile.name }}</span></button>
-          <div x-show="o" x-cloak class="absolute right-0 mt-2 w-52 rounded-xl border border-slate-200 bg-white p-1 text-sm shadow-lg dark:border-slate-700 dark:bg-slate-900">
-            {% for url, label in user_links %}<a href="{{ url }}" class="block rounded-md px-3 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-800">{{ label }}</a>{% endfor %}
-            <form method="post" action="{% url 'accounts:logout' %}">{% csrf_token %}<button class="w-full rounded-md px-3 py-1.5 text-left hover:bg-slate-100 dark:hover:bg-slate-800">Log out</button></form>
+        <a href="{% url 'accounts:notifications' %}" class="btn-secondary btn-icon relative" aria-label="Notifications{% if unread_count %} ({{ unread_count }} unread){% endif %}">
+          {% icon "bell" "h-4 w-4" %}{% if unread_count %}<span class="absolute -right-1 -top-1 rounded-full bg-rose-600 px-1.5 text-[10px] font-bold text-white">{{ unread_count }}</span>{% endif %}</a>
+        <div class="relative" x-data="{ o: false }" @click.outside="o = false" @keydown.escape.stop="o = false">
+          <button type="button" @click="o = !o" class="btn-secondary" :aria-expanded="o.toString()" aria-haspopup="true">
+            <span class="grid h-6 w-6 place-items-center rounded-full bg-brand-100 text-xs font-bold text-brand-700 dark:bg-brand-500/20 dark:text-brand-200" aria-hidden="true">{{ user.profile.initials }}</span>
+            <span class="hidden max-w-[10rem] truncate sm:inline">{{ user.profile.name }}</span>{% icon "chevron-down" "h-3.5 w-3.5" %}</button>
+          <div x-show="o" x-cloak x-transition.origin.top.right class="absolute right-0 mt-2 w-60 rounded-xl border border-slate-200 bg-white p-1 text-sm shadow-xl dark:border-slate-700 dark:bg-slate-900" role="menu">
+            <p class="truncate px-3 py-2 text-xs text-slate-500">Signed in as <strong class="text-slate-700 dark:text-slate-200">{{ user.get_username }}</strong></p>
+            {% for link in user_links %}<a role="menuitem" href="{{ link.url }}" class="flex items-center gap-2 rounded-md px-3 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-800">{% icon link.icon "h-4 w-4 text-slate-500" %}{{ link.label }}</a>{% endfor %}
+            <form method="post" action="{% url 'accounts:logout' %}" class="border-t border-slate-100 pt-1 dark:border-slate-800">{% csrf_token %}
+              <button role="menuitem" class="flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left hover:bg-slate-100 dark:hover:bg-slate-800">{% icon "log-out" "h-4 w-4 text-slate-500" %}Log out</button></form>
           </div>
         </div>
         {% else %}
-        <a href="{% url 'accounts:login' %}" class="rounded-lg px-3 py-1.5 text-sm hover:bg-slate-100 dark:hover:bg-slate-800">Log in</a>
-        <a href="{% url 'accounts:signup' %}" class="rounded-lg bg-brand-600 px-3 py-1.5 text-sm text-white hover:bg-brand-700">Sign up</a>
+        <a href="{% url 'accounts:login' %}?next={{ request.get_full_path|urlencode }}" class="btn-ghost hidden sm:inline-flex">Log in</a>
+        <a href="{% url 'accounts:signup' %}" class="btn-primary">Sign up</a>
         {% endif %}
-        <button type="button" @click="$store.theme.toggle(); $nextTick(() => lucide.createIcons())" aria-label="Toggle dark mode" class="rounded-lg border border-slate-300 p-2 hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-800">
-          <span x-show="!$store.theme.dark"><i data-lucide="moon" class="h-4 w-4"></i></span>
-          <span x-show="$store.theme.dark" x-cloak><i data-lucide="sun" class="h-4 w-4"></i></span>
-        </button>
       </div>
     </div>
+    <nav id="mobile-nav" x-show="menu" x-cloak x-transition class="border-t border-slate-200 px-4 py-2 lg:hidden dark:border-slate-800" aria-label="Primary">
+      {% for link in nav_links %}
+      <a href="{{ link.url }}" class="flex items-center gap-2 rounded-md px-3 py-2 text-sm {% if link.active %}bg-brand-50 font-semibold text-brand-700 dark:bg-brand-500/15 dark:text-brand-200{% else %}hover:bg-slate-100 dark:hover:bg-slate-800{% endif %}"{% if link.active %} aria-current="page"{% endif %}>{% icon link.icon "h-4 w-4" %}{{ link.label }}</a>
+      {% endfor %}
+      <button type="button" class="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-800" @click="menu = false; $dispatch('open-palette')">{% icon "search" "h-4 w-4" %}Search</button>
+      {% if not user.is_authenticated %}<a href="{% url 'accounts:login' %}" class="flex items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-slate-100 dark:hover:bg-slate-800">{% icon "lock" "h-4 w-4" %}Log in</a>{% endif %}
+    </nav>
   </header>
 
-  <nav class="flex gap-1 overflow-x-auto border-b border-slate-200 px-4 py-2 text-sm lg:hidden dark:border-slate-800">
-    {% for url, label in nav_links %}<a href="{{ url }}" class="whitespace-nowrap rounded-md px-2.5 py-1 hover:bg-slate-100 dark:hover:bg-slate-800">{{ label }}</a>{% endfor %}
-  </nav>
-  <main class="mx-auto max-w-screen-2xl px-4 py-6">
-    {% if messages %}<div class="mb-4 space-y-2">{% for m in messages %}
-      <div class="rounded-lg border px-4 py-2 text-sm {% if m.tags == 'error' %}border-rose-300 bg-rose-50 text-rose-800 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200{% else %}border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200{% endif %}" role="status">{{ m }}</div>{% endfor %}</div>{% endif %}
+  <main id="main" tabindex="-1" class="mx-auto w-full max-w-screen-2xl flex-1 px-4 py-6 focus:outline-none">
+    {% if messages %}
+    <div class="mb-4 space-y-2" aria-live="polite">
+      {% for m in messages %}
+      <div x-data="{ show: true }" x-show="show" x-transition class="flex items-start gap-2 rounded-lg border px-4 py-2.5 text-sm {% if m.level_tag == 'error' %}border-rose-300 bg-rose-50 text-rose-800 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200{% elif m.level_tag == 'warning' %}border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200{% else %}border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200{% endif %}" role="{% if m.level_tag == 'error' %}alert{% else %}status{% endif %}">
+        {% if m.level_tag == 'error' %}{% icon "triangle-alert" "mt-0.5 h-4 w-4" %}{% else %}{% icon "circle-check" "mt-0.5 h-4 w-4" %}{% endif %}
+        <span class="flex-1">{{ m }}</span>
+        <button type="button" class="-mr-1 rounded p-0.5 opacity-70 hover:opacity-100" @click="show = false" aria-label="Dismiss">{% icon "x" "h-4 w-4" %}</button>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
     {% block content %}{% endblock %}
   </main>
 
-  <footer class="mx-auto max-w-screen-2xl px-4 pb-10 pt-4 text-xs text-slate-500 dark:text-slate-400">
-    Metrics (ranks, h5, impact factors, acceptance rates) are approximate; deadlines marked <em>Projected</em> are extrapolated from previous editions.
-    Always confirm on the official venue website before submitting.
-    · <a class="underline" href="{% url 'venues:export_csv' %}">CSV</a> · <a class="underline" href="{% url 'venues:export_json' %}">JSON</a>
-    · <a class="underline" href="{% url 'venues:calendar_filtered' %}">Calendar (.ics)</a> · <a class="underline" href="{% url 'venues:atom_feed' %}">Atom feed</a>
-    · <a class="underline" href="{% url 'venues:api_docs' %}">API</a> · <a class="underline" href="{% url 'community:changes' %}">Deadline changes</a>
+  <footer class="mt-8 border-t border-slate-200 bg-white text-sm dark:border-slate-800 dark:bg-slate-900">
+    <div class="mx-auto grid max-w-screen-2xl gap-8 px-4 py-10 sm:grid-cols-2 lg:grid-cols-5">
+      <div class="lg:col-span-2">
+        <a href="{% url 'venues:list' %}" class="flex items-center gap-2 font-bold"><span class="grid h-7 w-7 place-items-center rounded-lg bg-brand-600 text-white">{% icon "activity" "h-4 w-4" %}</span>VenuePulse</a>
+        <p class="muted mt-3 max-w-md text-xs leading-relaxed">Ranks, h5-indices, impact factors and acceptance rates are approximate. Deadlines marked <em>Projected</em> are extrapolated from previous editions — always confirm on the official venue website before submitting.</p>
+        <p class="muted mt-3 text-xs">Press <kbd class="kbd">?</kbd> for keyboard shortcuts.</p>
+      </div>
+      <div>
+        <h2 class="mb-2 font-semibold">Discover</h2>
+        <ul class="muted space-y-1.5">
+          <li><a class="hover:underline" href="{% url 'venues:list' %}">Explore venues</a></li>
+          <li><a class="hover:underline" href="{% url 'venues:recommend' %}">Venue recommender</a></li>
+          <li><a class="hover:underline" href="{% url 'venues:plan' %}">Deadline planner</a></li>
+          <li><a class="hover:underline" href="{% url 'venues:insights' %}">Insights</a></li>
+          <li><a class="hover:underline" href="{% url 'community:changes' %}">Deadline radar</a></li>
+        </ul>
+      </div>
+      <div>
+        <h2 class="mb-2 font-semibold">Data &amp; feeds</h2>
+        <ul class="muted space-y-1.5">
+          <li><a class="hover:underline" href="{% url 'venues:export_csv' %}">CSV export</a></li>
+          <li><a class="hover:underline" href="{% url 'venues:export_json' %}">JSON export</a></li>
+          <li><a class="hover:underline" href="{% url 'venues:calendar_filtered' %}">Calendar (.ics)</a></li>
+          <li><a class="hover:underline" href="{% url 'venues:atom_feed' %}">Atom feed</a></li>
+        </ul>
+      </div>
+      <div>
+        <h2 class="mb-2 font-semibold">Developers</h2>
+        <ul class="muted space-y-1.5">
+          <li><a class="hover:underline" href="{% url 'venues:api_docs' %}">API documentation</a></li>
+          <li><a class="hover:underline" href="{% url 'venues:openapi' %}">OpenAPI schema</a></li>
+          <li><a class="hover:underline" href="{% url 'sitemap' %}">Sitemap</a></li>
+          <li><a class="hover:underline" href="{% url 'healthz' %}">Status</a></li>
+        </ul>
+      </div>
+    </div>
+    <p class="muted border-t border-slate-100 py-4 text-center text-xs dark:border-slate-800">© {% now "Y" %} VenuePulse · Built with Django, HTMX &amp; Alpine.js</p>
   </footer>
 
   <!-- Compare drawer -->
   <div x-data x-show="$store.compare.open" x-cloak class="fixed inset-0 z-40" @keydown.escape.window="$store.compare.open = false">
     <div class="absolute inset-0 bg-slate-900/50" @click="$store.compare.open = false"></div>
-    <aside class="absolute inset-x-0 bottom-0 flex max-h-[85vh] flex-col rounded-t-2xl bg-white shadow-2xl dark:bg-slate-900"
+    <aside class="absolute inset-x-0 bottom-0 flex max-h-[85vh] flex-col rounded-t-2xl bg-white shadow-2xl dark:bg-slate-900" role="dialog" aria-modal="true" aria-labelledby="compare-title"
            x-transition:enter="transition ease-out duration-200" x-transition:enter-start="translate-y-full" x-transition:enter-end="translate-y-0">
-      <div class="flex items-center gap-3 border-b border-slate-200 px-4 py-3 dark:border-slate-800">
-        <h2 class="font-semibold">Compare venues <span class="text-sm font-normal text-slate-500" x-text="`(${$store.compare.items.length}/${$store.compare.max})`"></span></h2>
-        <button type="button" class="ml-auto text-sm text-slate-500 hover:underline" @click="$store.compare.clear()">Clear all</button>
-        <button type="button" aria-label="Close" class="rounded-md p-1 hover:bg-slate-100 dark:hover:bg-slate-800" @click="$store.compare.open = false"><i data-lucide="x" class="h-5 w-5"></i></button>
+      <div class="flex flex-wrap items-center gap-2 border-b border-slate-200 px-4 py-3 dark:border-slate-800">
+        <h2 id="compare-title" class="font-semibold">Compare venues <span class="text-sm font-normal text-slate-500" x-text="`(${$store.compare.items.length}/${$store.compare.max})`"></span></h2>
+        <div class="ml-auto flex items-center gap-1.5">
+          <a class="btn-ghost" :href="$store.compare.url()" x-show="$store.compare.items.length">{% icon "external-link" "h-4 w-4" %}<span class="hidden sm:inline">Full page</span></a>
+          <button type="button" class="btn-ghost" x-show="$store.compare.items.length" @click="$store.compare.copyLink()">{% icon "link" "h-4 w-4" %}<span class="hidden sm:inline">Copy link</span></button>
+          <button type="button" class="btn-ghost" x-show="$store.compare.items.length" @click="$store.compare.clear()">{% icon "trash-2" "h-4 w-4" %}<span class="hidden sm:inline">Clear</span></button>
+          <button type="button" aria-label="Close comparison" class="btn-ghost btn-icon" @click="$store.compare.open = false">{% icon "x" "h-5 w-5" %}</button>
+        </div>
       </div>
       <div id="compare-body" class="overflow-auto p-4"></div>
     </aside>
   </div>
 
   <!-- Quick-view modal -->
-  <div x-data="{ open: false }" x-show="open" x-cloak @open-modal.window="open = true" @keydown.escape.window="open = false" class="fixed inset-0 z-50 grid place-items-center p-4">
+  <div x-data="{ open: false }" x-show="open" x-cloak @open-modal.window="open = true; $nextTick(() => $refs.close.focus())" @keydown.escape.window="open = false" class="fixed inset-0 z-50 grid place-items-center p-4">
     <div class="absolute inset-0 bg-slate-900/60" @click="open = false"></div>
-    <div class="relative max-h-[90vh] w-full max-w-3xl overflow-auto rounded-2xl bg-white p-5 shadow-2xl dark:bg-slate-900">
-      <button type="button" aria-label="Close" class="absolute right-3 top-3 rounded-md p-1 hover:bg-slate-100 dark:hover:bg-slate-800" @click="open = false"><i data-lucide="x" class="h-5 w-5"></i></button>
-      <div id="modal-body"><p class="p-6 text-center text-slate-500">Loading…</p></div>
+    <div class="relative max-h-[90vh] w-full max-w-3xl overflow-auto rounded-2xl bg-white p-5 shadow-2xl dark:bg-slate-900" role="dialog" aria-modal="true" aria-label="Venue quick view">
+      <button type="button" x-ref="close" aria-label="Close quick view" class="btn-ghost btn-icon absolute right-3 top-3" @click="open = false">{% icon "x" "h-5 w-5" %}</button>
+      <div id="modal-body">{% include "venues/partials/skeleton.html" %}</div>
     </div>
   </div>
 
   <!-- Command palette (Ctrl/Cmd+K) -->
-  <div x-data="palette()" x-show="open" x-cloak @open-palette.window="show()" @keydown.window="onKey($event)" class="fixed inset-0 z-[70] grid place-items-start justify-center p-4 pt-24">
+  <div x-data="palette()" x-show="open" x-cloak @open-palette.window="show()" class="fixed inset-0 z-[70] grid place-items-start justify-center p-4 pt-[12vh]">
     <div class="absolute inset-0 bg-slate-900/60" @click="open = false"></div>
-    <div class="relative w-full max-w-xl overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-slate-900" role="dialog" aria-label="Command palette">
-      <input x-ref="input" x-model="q" @input.debounce.150ms="search()" @keydown.enter.prevent="go()" @keydown.down.prevent="move(1)" @keydown.up.prevent="move(-1)"
-             placeholder="Jump to a venue or page…" class="w-full border-b border-slate-200 bg-transparent px-4 py-3 text-base outline-none dark:border-slate-700">
-      <ul class="max-h-80 overflow-auto p-1 text-sm">
-        <template x-for="(r, i) in results" :key="r.url">
-          <li><a :href="r.url" class="flex items-center gap-2 rounded-lg px-3 py-2" :class="i === idx ? 'bg-brand-50 dark:bg-slate-800' : ''">
-            <span x-text="r.flag || '→'"></span><span class="font-semibold" x-text="r.acronym"></span><span class="truncate text-slate-500" x-text="r.name"></span></a></li>
+    <div class="relative w-full max-w-xl overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-slate-900" role="dialog" aria-modal="true" aria-label="Command palette" @keydown.escape="open = false">
+      <div class="flex items-center gap-2 border-b border-slate-200 px-4 dark:border-slate-700">
+        {% icon "search" "h-5 w-5 text-slate-400" %}
+        <input x-ref="input" x-model="q" @input.debounce.150ms="search()" @keydown.enter.prevent="go()" @keydown.down.prevent="move(1)" @keydown.up.prevent="move(-1)"
+               role="combobox" aria-expanded="true" aria-controls="palette-results" aria-autocomplete="list" :aria-activedescendant="results.length ? 'pal-' + idx : null"
+               placeholder="Jump to a venue, page or action…" aria-label="Search venues, pages and actions" class="w-full bg-transparent py-3 text-base outline-none">
+        <kbd class="kbd">Esc</kbd>
+      </div>
+      <ul id="palette-results" role="listbox" class="max-h-80 overflow-auto p-1 text-sm">
+        <template x-for="(r, i) in results" :key="r.url + r.acronym">
+          <li :id="'pal-' + i" role="option" :aria-selected="(i === idx).toString()">
+            <a :href="r.url || '#'" @click="if (r.action) { $event.preventDefault(); run(r); }" @mouseenter="idx = i" class="flex items-center gap-2 rounded-lg px-3 py-2" :class="i === idx ? 'bg-brand-50 dark:bg-slate-800' : ''">
+              <span class="w-5 text-center" x-text="r.flag || '→'"></span><span class="font-semibold" x-text="r.acronym"></span><span class="truncate text-slate-500" x-text="r.name"></span>
+              <span class="ml-auto text-[11px] text-slate-500" x-text="r.type || ''"></span></a></li>
         </template>
-        <li x-show="!results.length" class="px-3 py-6 text-center text-slate-500">No matches</li>
+        <li x-show="!results.length" class="px-3 py-6 text-center text-slate-500">No matches for “<span x-text="q"></span>”</li>
       </ul>
     </div>
   </div>
 
-  <!-- Toast -->
-  <div x-data x-show="$store.toast.visible" x-cloak x-transition class="fixed bottom-5 left-1/2 z-[60] -translate-x-1/2 rounded-lg bg-slate-900 px-4 py-2 text-sm text-white shadow-lg dark:bg-slate-100 dark:text-slate-900" x-text="$store.toast.msg"></div>
+  <!-- Keyboard shortcuts help -->
+  <div x-data x-show="$store.shortcuts.open" x-cloak class="fixed inset-0 z-[75] grid place-items-center p-4" @keydown.escape.window="$store.shortcuts.open = false">
+    <div class="absolute inset-0 bg-slate-900/60" @click="$store.shortcuts.open = false"></div>
+    <div class="card relative w-full max-w-md p-5 shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="shortcuts-title">
+      <div class="mb-3 flex items-center"><h2 id="shortcuts-title" class="flex items-center gap-2 font-semibold">{% icon "keyboard" "h-5 w-5" %}Keyboard shortcuts</h2>
+        <button type="button" class="btn-ghost btn-icon ml-auto" aria-label="Close" @click="$store.shortcuts.open = false">{% icon "x" "h-4 w-4" %}</button></div>
+      <dl class="grid grid-cols-[auto_1fr] items-center gap-x-4 gap-y-2 text-sm">
+        <dt><kbd class="kbd">Ctrl</kbd> <kbd class="kbd">K</kbd></dt><dd>Command palette</dd>
+        <dt><kbd class="kbd">/</kbd></dt><dd>Focus the venue search</dd>
+        <dt><kbd class="kbd">g</kbd> <kbd class="kbd">h</kbd></dt><dd>Go to Explore</dd>
+        <dt><kbd class="kbd">g</kbd> <kbd class="kbd">t</kbd></dt><dd>Go to My Targets</dd>
+        <dt><kbd class="kbd">g</kbd> <kbd class="kbd">r</kbd></dt><dd>Go to Recommender</dd>
+        <dt><kbd class="kbd">g</kbd> <kbd class="kbd">d</kbd></dt><dd>Go to Dashboard</dd>
+        <dt><kbd class="kbd">c</kbd></dt><dd>Open comparison drawer</dd>
+        <dt><kbd class="kbd">d</kbd></dt><dd>Toggle dark mode</dd>
+        <dt><kbd class="kbd">?</kbd></dt><dd>Show this help</dd>
+        <dt><kbd class="kbd">Esc</kbd></dt><dd>Close dialogs</dd>
+      </dl>
+    </div>
+  </div>
+
+  <!-- Toast (live region) -->
+  <div class="pointer-events-none fixed inset-x-0 bottom-5 z-[60] flex justify-center px-4" aria-live="polite" aria-atomic="true">
+    <div x-data x-show="$store.toast.visible" x-cloak x-transition class="pointer-events-auto flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm shadow-lg"
+         :class="$store.toast.type === 'error' ? 'bg-rose-700 text-white' : 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900'">
+      <span x-text="$store.toast.msg"></span>
+      <button type="button" class="opacity-70 hover:opacity-100" @click="$store.toast.visible = false" aria-label="Dismiss notification">{% icon "x" "h-4 w-4" %}</button>
+    </div>
+  </div>
+  {% block scripts %}{% endblock %}
 </body>
 </html>

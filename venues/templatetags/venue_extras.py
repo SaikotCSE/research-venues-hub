@@ -1,4 +1,6 @@
 from django import template
+from django.templatetags.static import static
+from django.utils.html import format_html
 
 register = template.Library()
 
@@ -48,3 +50,23 @@ def checked(params, key, value):
         return "checked" if str(value) in params.getlist(key) else ""
     except AttributeError:
         return ""
+
+
+@register.simple_tag
+def icon(name, css="h-4 w-4", label=""):
+    """Render a Lucide icon from the local sprite: {% icon "search" "h-4 w-4" %}.
+
+    Icons are decorative (aria-hidden) unless ``label`` is given, in which case they get role="img".
+    """
+    href = f"{static('venues/img/icons.svg')}#{name}"
+    if label:
+        return format_html(
+            '<svg class="icon {}" role="img" aria-label="{}" focusable="false" fill="none" stroke="currentColor" '
+            'stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="{}"></use></svg>',
+            css, label, href,
+        )
+    return format_html(
+        '<svg class="icon {}" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" '
+        'stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="{}"></use></svg>',
+        css, href,
+    )

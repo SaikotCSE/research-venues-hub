@@ -21,6 +21,7 @@ class UserProfile(models.Model):
     reminder_days = models.CharField(max_length=40, default="14,7,1", help_text="Days before a deadline to notify, e.g. 14,7,1")
     calendar_token = models.CharField(max_length=64, unique=True, default=_token)
     api_token = models.CharField(max_length=64, unique=True, default=_token)
+    calendar_subscribed = models.BooleanField(default=False, help_text="Set once the private calendar feed has been fetched.")
 
     def __str__(self):
         return f"Profile<{self.user}>"
@@ -28,6 +29,12 @@ class UserProfile(models.Model):
     @property
     def name(self):
         return self.display_name or self.user.get_username()
+
+    @property
+    def initials(self):
+        parts = [p for p in self.name.replace("_", " ").replace(".", " ").split() if p]
+        letters = "".join(p[0] for p in parts[:2]) if len(parts) > 1 else self.name[:2]
+        return letters.upper()
 
     @property
     def reminder_offsets(self):

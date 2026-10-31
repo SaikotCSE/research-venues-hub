@@ -1,0 +1,22 @@
+{
+  "name": "venuepulse-frontend",
+  "private": true,
+  "description": "Front-end build for VenuePulse: compiles Tailwind CSS, builds the icon sprite and vendors runtime JS into venues/static/venues/.",
+  "scripts": {
+    "vendor": "node frontend/vendor.mjs",
+    "build:icons": "node frontend/build-icons.mjs",
+    "build:css": "tailwindcss -c tailwind.config.js -i frontend/styles.css -o venues/static/venues/css/app.css --minify",
+    "watch:css": "tailwindcss -c tailwind.config.js -i frontend/styles.css -o venues/static/venues/css/app.css --watch",
+    "build": "npm run vendor && npm run build:icons && npm run build:css"
+  },
+  "dependencies": {
+    "alpinejs": "3.14.8",
+    "chart.js": "4.4.1",
+    "htmx.org": "2.0.4"
+  },
+  "devDependencies": {
+    "axe-core": "4.10.2",
+    "lucide-static": "0.468.0",
+    "tailwindcss": "3.4.17"
+  }
+}

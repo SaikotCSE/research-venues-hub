@@ -1,28 +1,36 @@
 {% extends "venues/base.html" %}
 {% block title %}Profile · VenuePulse{% endblock %}
 {% block content %}
-<div class="grid gap-6 lg:grid-cols-2">
-  <section class="rounded-2xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900">
-    <h1 class="mb-3 text-xl font-bold">Profile &amp; reminders</h1>
-    <form method="post" class="space-y-3">{% csrf_token %}
-      {% for f in form %}<div><label for="{{ f.id_for_label }}" class="mb-1 block text-sm font-medium">{{ f.label }}</label>{{ f }}
-        {% if f.help_text %}<p class="mt-0.5 text-xs text-slate-500">{{ f.help_text }}</p>{% endif %}{% for e in f.errors %}<p class="text-xs text-rose-600">{{ e }}</p>{% endfor %}</div>{% endfor %}
-      <button class="rounded-lg bg-brand-600 px-4 py-2 text-white hover:bg-brand-700">Save</button>
+<header class="mb-6">
+  <h1 class="text-2xl font-bold tracking-tight">Profile &amp; integrations</h1>
+  <p class="muted mt-1 text-sm">Personalise recommendations and reminders, and connect your calendar or scripts. Sign-in details are under <a class="link" href="{% url 'accounts:settings' %}">account settings</a>.</p>
+</header>
+<div class="grid gap-6 lg:grid-cols-[1.2fr_1fr]">
+  <section class="card p-6" aria-labelledby="profile-h">
+    <h2 id="profile-h" class="font-semibold">Profile &amp; reminders</h2>
+    <form method="post" class="mt-4" novalidate>{% csrf_token %}
+      {{ form }}
+      <button class="btn-primary mt-6">Save profile</button>
     </form>
   </section>
-  <section class="space-y-4">
-    <div class="rounded-2xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900">
-      <h2 class="font-semibold">Calendar feed</h2>
-      <p class="mb-2 text-sm text-slate-500">Subscribe in Google/Apple/Outlook calendar. Treat the URL as a secret.</p>
-      <input readonly value="{{ calendar_url }}" class="w-full rounded border border-slate-300 bg-transparent px-2 py-1 text-xs dark:border-slate-700" onclick="this.select()">
-      <form method="post" action="{% url 'accounts:regenerate_token' 'calendar' %}" class="mt-2">{% csrf_token %}<button class="text-sm text-rose-600 underline">Regenerate link</button></form>
-    </div>
-    <div class="rounded-2xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900">
-      <h2 class="font-semibold">API token</h2>
-      <p class="mb-2 text-sm text-slate-500">Use as <code>Authorization: Bearer …</code>. See the <a class="underline" href="{% url 'venues:api_docs' %}">API docs</a>.</p>
-      <input readonly value="{{ profile.api_token }}" class="w-full rounded border border-slate-300 bg-transparent px-2 py-1 font-mono text-xs dark:border-slate-700" onclick="this.select()">
-      <form method="post" action="{% url 'accounts:regenerate_token' 'api' %}" class="mt-2">{% csrf_token %}<button class="text-sm text-rose-600 underline">Regenerate token</button></form>
-    </div>
-  </section>
+  <div class="space-y-6">
+    <section id="calendar" class="card p-6" aria-labelledby="cal-h" x-data="copier">
+      <h2 id="cal-h" class="flex items-center gap-2 font-semibold">{% icon "calendar-days" "h-5 w-5 text-slate-500" %}Private calendar feed</h2>
+      <p class="muted mt-1 text-sm">Subscribe in Google Calendar, Apple Calendar or Outlook to see every milestone of your starred venues and active submissions. Treat this URL like a password.</p>
+      <label for="cal-url" class="sr-only">Calendar feed URL</label>
+      <div class="mt-3 flex gap-2"><input id="cal-url" readonly value="{{ calendar_url }}" class="input font-mono text-xs" @focus="$el.select()">
+        <button type="button" class="btn-secondary" @click="copy('{{ calendar_url|escapejs }}')"><span x-text="copied ? 'Copied' : 'Copy'">Copy</span></button></div>
+      <p class="help">{% if profile.calendar_subscribed %}✓ Your calendar app has fetched this feed.{% else %}Not subscribed yet.{% endif %}</p>
+      <form method="post" action="{% url 'accounts:regenerate_token' 'calendar' %}" class="mt-3">{% csrf_token %}<button class="link text-sm text-rose-700 dark:text-rose-300">Regenerate link (revokes the old one)</button></form>
+    </section>
+    <section class="card p-6" aria-labelledby="api-h" x-data="copier">
+      <h2 id="api-h" class="flex items-center gap-2 font-semibold">{% icon "code" "h-5 w-5 text-slate-500" %}API token</h2>
+      <p class="muted mt-1 text-sm">Send as <code class="kbd">Authorization: Bearer &lt;token&gt;</code>. See the <a class="link" href="{% url 'venues:api_docs' %}">API documentation</a>.</p>
+      <label for="api-token" class="sr-only">API token</label>
+      <div class="mt-3 flex gap-2"><input id="api-token" readonly value="{{ profile.api_token }}" class="input font-mono text-xs" @focus="$el.select()">
+        <button type="button" class="btn-secondary" @click="copy('{{ profile.api_token|escapejs }}')"><span x-text="copied ? 'Copied' : 'Copy'">Copy</span></button></div>
+      <form method="post" action="{% url 'accounts:regenerate_token' 'api' %}" class="mt-3">{% csrf_token %}<button class="link text-sm text-rose-700 dark:text-rose-300">Regenerate token (revokes the old one)</button></form>
+    </section>
+  </div>
 </div>
 {% endblock %}

@@ -9,7 +9,7 @@
 
 {% if not total %}
   <div class="rounded-xl border border-dashed border-slate-300 p-10 text-center text-slate-500 dark:border-slate-700">
-    <i data-lucide="search-x" class="mx-auto mb-2 h-8 w-8"></i>No venues match these filters.
+    {% icon "search-x" "mx-auto mb-2 h-8 w-8" %}No venues match these filters.
     <div class="mt-2"><button type="button" class="text-brand-600 underline dark:text-brand-500" @click="reset()">Reset filters</button></div>
   </div>
 {% elif view_mode == "grid" %}
