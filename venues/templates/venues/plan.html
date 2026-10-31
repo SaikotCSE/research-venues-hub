@@ -1,24 +1,60 @@
 {% extends "venues/base.html" %}
 {% block title %}Deadline planner · VenuePulse{% endblock %}
+{% block meta_description %}Know when your paper will be ready? See every conference and journal deadline you can still make, with days of slack.{% endblock %}
 {% block content %}
-<h1 class="text-2xl font-bold">Deadline planner</h1>
-<p class="mb-4 text-sm text-slate-500">Tell us when your paper will be ready; we list the next deadlines you can still hit, with days of slack.</p>
-<form method="get" class="mb-6 flex flex-wrap items-end gap-3 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
-  <label class="text-sm">Ready on<input type="date" name="ready" required value="{{ raw|default:today|date:'Y-m-d' }}" class="mt-1 block rounded-lg border border-slate-300 bg-transparent p-2 dark:border-slate-700"></label>
-  <label class="text-sm">Domain<select name="domain" class="mt-1 block rounded-lg border border-slate-300 bg-white p-2 text-slate-800 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"><option value="">Any</option>{% for d in domains %}<option {% if d == domain %}selected{% endif %}>{{ d }}</option>{% endfor %}</select></label>
-  <label class="text-sm">Type<select name="type" class="mt-1 block rounded-lg border border-slate-300 bg-white p-2 text-slate-800 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"><option value="">Any</option>{% for v, l in type_choices %}<option value="{{ v }}" {% if v == vtype %}selected{% endif %}>{{ l }}</option>{% endfor %}</select></label>
-  <button class="rounded-lg bg-brand-600 px-5 py-2 text-white">Plan</button>
+<header class="mb-6">
+  <h1 class="text-2xl font-bold tracking-tight sm:text-3xl">Deadline planner</h1>
+  <p class="muted mt-1 max-w-2xl">Tell us when your paper will be ready and we’ll list every deadline you can still make in the following nine months — with the days of slack you’ll have.</p>
+</header>
+<form method="get" class="card mb-6 grid gap-4 p-5 sm:grid-cols-2 lg:grid-cols-[repeat(3,minmax(0,1fr))_auto] lg:items-end">
+  <div><label for="ready" class="label">Paper ready on</label>
+    <input id="ready" type="date" name="ready" required min="{{ today|date:'Y-m-d' }}" value="{% if raw %}{{ raw }}{% else %}{{ today|date:'Y-m-d' }}{% endif %}" class="input"></div>
+  <div><label for="plan-domain" class="label">Research domain</label>
+    <select id="plan-domain" name="domain" class="input"><option value="">Any domain</option>{% for d in domains %}<option {% if d == domain %}selected{% endif %}>{{ d }}</option>{% endfor %}</select></div>
+  <div><label for="plan-type" class="label">Venue type</label>
+    <select id="plan-type" name="type" class="input"><option value="">Any type</option>{% for v, l in type_choices %}<option value="{{ v }}" {% if v == vtype %}selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>
+  <button class="btn-primary py-2">{% icon "calendar-days" "h-4 w-4" %}Plan</button>
 </form>
+
 {% if ready %}
-<div class="overflow-x-auto rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
-<table class="w-full min-w-[640px] text-left text-sm"><thead class="bg-slate-50 text-xs uppercase text-slate-500 dark:bg-slate-800/60"><tr><th class="px-3 py-2">Venue</th><th class="px-3 py-2">Rank</th><th class="px-3 py-2">Deadline (UTC)</th><th class="px-3 py-2 text-right">Slack</th><th class="px-3 py-2">Notification</th><th></th></tr></thead>
-<tbody class="divide-y divide-slate-100 dark:divide-slate-800">
-{% for r in rows %}<tr><td class="px-3 py-2"><a class="font-semibold hover:text-brand-600" href="{{ r.venue.get_absolute_url }}">{{ r.venue.acronym }} {{ r.cycle.year }}</a>{% if r.cycle.is_projected %} <span class="rounded bg-amber-100 px-1 text-[10px] text-amber-800">projected</span>{% endif %}</td>
-<td class="px-3 py-2">{{ r.venue.rank_label }}</td><td class="tnum px-3 py-2">{{ r.cycle.submission_deadline|date:"M j, Y H:i" }}</td>
-<td class="tnum px-3 py-2 text-right {% if r.slack_days < 14 %}text-rose-600{% endif %}">{{ r.slack_days }} d</td>
-<td class="px-3 py-2">{{ r.cycle.notification_date|date:"M j, Y"|default:"—" }}</td>
-<td class="px-3 py-2"><a class="underline" href="{{ r.venue.get_absolute_url }}">Details</a></td></tr>
-{% empty %}<tr><td colspan="6" class="p-6 text-center text-slate-500">No deadlines in the next 9 months after that date.</td></tr>{% endfor %}
-</tbody></table></div>
+  {% if rows %}
+  <p class="mb-3 text-sm"><strong>{{ rows|length }}</strong> deadline{{ rows|length|pluralize }} you can make after <strong>{{ ready|date:"M j, Y" }}</strong>. Slack under two weeks is highlighted — leave time for proofreading!</p>
+  <div class="card overflow-x-auto">
+    <table class="w-full min-w-[720px] text-left text-sm">
+      <caption class="sr-only">Deadlines after {{ ready|date:"M j, Y" }}</caption>
+      <thead class="bg-slate-50 text-xs uppercase tracking-wide text-slate-600 dark:bg-slate-800/80 dark:text-slate-300"><tr>
+        <th scope="col" class="px-4 py-2.5">Venue</th><th scope="col" class="px-4 py-2.5">Rank</th><th scope="col" class="px-4 py-2.5">Paper deadline (UTC)</th>
+        <th scope="col" class="px-4 py-2.5 text-right">Slack</th><th scope="col" class="px-4 py-2.5">Notification</th><th scope="col" class="px-4 py-2.5"><span class="sr-only">Actions</span></th></tr></thead>
+      <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+        {% for r in rows %}
+        <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40">
+          <th scope="row" class="px-4 py-2.5 font-normal"><a class="font-semibold hover:text-brand-700 dark:hover:text-brand-300" href="{{ r.venue.get_absolute_url }}">{{ r.cycle }}</a>
+            {% if r.cycle.is_projected %}<span class="badge ml-1 bg-amber-100 font-medium text-amber-900 dark:bg-amber-400/15 dark:text-amber-200">projected</span>{% endif %}
+            <div class="muted truncate text-xs">{{ r.venue.name }}</div></th>
+          <td class="px-4 py-2.5"><span class="badge {{ r.venue|rank_class }}">{{ r.venue.rank_label }}</span></td>
+          <td class="tnum px-4 py-2.5">{{ r.cycle.submission_deadline|date:"D M j, Y H:i" }}</td>
+          <td class="tnum px-4 py-2.5 text-right font-semibold {% if r.slack_days < 14 %}text-rose-700 dark:text-rose-300{% elif r.slack_days < 30 %}text-amber-700 dark:text-amber-300{% else %}text-emerald-700 dark:text-emerald-300{% endif %}">{{ r.slack_days }} day{{ r.slack_days|pluralize }}</td>
+          <td class="tnum px-4 py-2.5">{{ r.cycle.notification_date|date:"M j, Y"|default:"—" }}</td>
+          <td class="whitespace-nowrap px-4 py-2.5 text-right">
+            <button type="button" class="btn-ghost py-1 text-xs" @click="$store.compare.toggle('{{ r.venue.slug }}', '{{ r.venue.acronym|escapejs }}')">{% icon "columns-3" "h-3.5 w-3.5" %}Compare</button>
+            {% if user.is_authenticated %}<a class="btn-ghost py-1 text-xs" href="{% url 'tracker:create' %}?venue={{ r.venue.slug }}">{% icon "kanban" "h-3.5 w-3.5" %}Track</a>{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="card flex flex-col items-center px-6 py-12 text-center">
+    {% icon "calendar-days" "h-8 w-8 text-slate-400" %}
+    <h2 class="mt-3 font-semibold">No deadlines in the nine months after {{ ready|date:"M j, Y" }}</h2>
+    <p class="muted mt-1 text-sm">Try another domain or venue type, or consider journals with rolling submissions.</p>
+    <a class="btn-secondary mt-4" href="{% url 'venues:list' %}?status=rolling">Browse rolling journals</a>
+  </div>
+  {% endif %}
+{% else %}
+  <div class="grid gap-4 sm:grid-cols-3">
+    {% for title, body in tips %}<div class="card p-5"><h2 class="font-semibold">{{ title }}</h2><p class="muted mt-1 text-sm">{{ body }}</p></div>{% endfor %}
+  </div>
 {% endif %}
 {% endblock %}

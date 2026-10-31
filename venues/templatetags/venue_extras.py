@@ -82,3 +82,12 @@ def jsonld(data):
     payload = json.dumps(data, cls=DjangoJSONEncoder, ensure_ascii=False)
     payload = payload.replace("<", "\\u003C").replace(">", "\\u003E").replace("&", "\\u0026")
     return mark_safe(f'<script type="application/ld+json">{payload}</script>')  # noqa: S308 - escaped above
+
+
+@register.filter
+def get_item(mapping, key):
+    """{{ dict|get_item:key }} — dictionary lookup with a variable key."""
+    try:
+        return mapping.get(key, "")
+    except AttributeError:
+        return ""

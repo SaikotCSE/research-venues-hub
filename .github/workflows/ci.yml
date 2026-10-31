@@ -88,3 +88,26 @@ jobs:
           for i in $(seq 1 30); do curl -fsS -H "Host: localhost" http://localhost:8000/healthz && break; sleep 2; done
           curl -fsS -H "Host: localhost" http://localhost:8000/api/stats/
           docker logs vp | tail -20
+
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: pip install -r requirements.txt
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Browser end-to-end + accessibility tests
+        run: npm run e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: playwright-report/

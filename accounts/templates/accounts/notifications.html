@@ -1,13 +1,28 @@
 {% extends "venues/base.html" %}
 {% block title %}Notifications · VenuePulse{% endblock %}
 {% block content %}
-<div class="mb-4 flex items-center"><h1 class="text-2xl font-bold">Notifications</h1>
-  <form method="post" action="{% url 'accounts:notifications_read' %}" class="ml-auto">{% csrf_token %}<button class="text-sm underline">Mark all as read</button></form></div>
-<div class="max-w-2xl divide-y divide-slate-100 rounded-2xl border border-slate-200 bg-white dark:divide-slate-800 dark:border-slate-800 dark:bg-slate-900">
+<header class="mb-5 flex flex-wrap items-end gap-3">
+  <div><h1 class="text-2xl font-bold tracking-tight">Notifications</h1>
+    <p class="muted mt-1 text-sm">Deadline reminders, saved-search alerts and account news. Configure reminder timing on your <a class="link" href="{% url 'accounts:profile' %}">profile</a>.</p></div>
+  {% if items %}<form method="post" action="{% url 'accounts:notifications_read' %}" class="ml-auto">{% csrf_token %}<button class="btn-secondary">{% icon "check" "h-4 w-4" %}Mark all as read</button></form>{% endif %}
+</header>
+{% if items %}
+<ul class="card max-w-3xl divide-y divide-slate-100 dark:divide-slate-800">
   {% for n in items %}
-  <a href="{{ n.url|default:'#' }}" class="flex items-start gap-3 px-4 py-3 {% if not n.read_at %}bg-brand-50/60 dark:bg-slate-800/40{% endif %}">
-    {% if n.kind == 'search' %}{% icon "search" "mt-0.5 h-4 w-4" %}{% else %}{% icon "alarm-clock" "mt-0.5 h-4 w-4" %}{% endif %}
-    <div><div class="text-sm">{{ n.message }}</div><div class="text-xs text-slate-500">{{ n.created_at|timesince }} ago</div></div></a>
-  {% empty %}<p class="p-6 text-center text-slate-500">No notifications yet. Star venues and run <code>send_reminders</code> (or schedule it) to receive reminders.</p>{% endfor %}
+  <li><a href="{{ n.url|default:'#' }}" class="flex items-start gap-3 px-5 py-3 hover:bg-slate-50 dark:hover:bg-slate-800/40 {% if not n.read_at %}bg-brand-50/60 dark:bg-brand-500/5{% endif %}">
+    <span class="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full {% if n.kind == 'deadline' %}bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300{% elif n.kind == 'search' %}bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-300{% else %}bg-brand-100 text-brand-700 dark:bg-brand-500/15 dark:text-brand-300{% endif %}">
+      {% if n.kind == 'search' %}{% icon "search" "h-4 w-4" %}{% elif n.kind == 'deadline' %}{% icon "alarm-clock" "h-4 w-4" %}{% else %}{% icon "info" "h-4 w-4" %}{% endif %}</span>
+    <div class="min-w-0 flex-1"><p class="text-sm {% if not n.read_at %}font-semibold{% endif %}">{{ n.message }}</p>
+      <p class="muted text-xs">{{ n.get_kind_display }} · {{ n.created_at|timesince }} ago{% if not n.read_at %} · <span class="text-brand-700 dark:text-brand-300">new</span>{% endif %}</p></div>
+  </a></li>
+  {% endfor %}
+</ul>
+{% else %}
+<div class="card flex max-w-3xl flex-col items-center px-6 py-14 text-center">
+  {% icon "bell" "h-10 w-10 text-slate-400" %}
+  <h2 class="mt-3 text-lg font-semibold">No notifications yet</h2>
+  <p class="muted mt-1 max-w-md text-sm">Star venues to receive reminders {{ user.profile.reminder_days }} days before their deadlines, and save searches to get alerts when new venues match.</p>
+  <a class="btn-primary mt-5" href="{% url 'venues:list' %}">Find venues to star</a>
 </div>
+{% endif %}
 {% endblock %}

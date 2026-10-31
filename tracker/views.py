@@ -1,7 +1,7 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.db.models import Count
-from django.http import HttpResponse
+from django.db.models import Count, Q
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
@@ -13,7 +13,8 @@ from .models import ChecklistItem, Paper, Submission
 
 @login_required
 def board(request):
-    subs = request.user.submissions.select_related("paper", "venue", "cycle")
+    subs = request.user.submissions.select_related("paper", "venue", "cycle").annotate(
+        items_total=Count("checklist_items"), items_done=Count("checklist_items", filter=Q(checklist_items__done=True)))
     by_status = {s: [] for s in Submission.BOARD_ORDER}
     for sub in subs:
         if sub.status in by_status:
@@ -65,11 +66,14 @@ def submission_detail(request, pk):
 def submission_status(request, pk):
     sub = get_object_or_404(Submission, pk=pk, user=request.user)
     status = request.POST.get("status")
-    if status in Submission.Status.values:
+    if status in Submission.Status.values and status != sub.status:
         sub.status = status
         sub.save()
+        messages.success(request, f"Moved “{sub.paper}” to {sub.get_status_display()}.")
     if request.headers.get("HX-Request"):
         return HttpResponse(status=204, headers={"HX-Refresh": "true"})
+    if request.headers.get("Accept") == "application/json":  # drag & drop (fetch): keep the flash message for the reload
+        return JsonResponse({"status": sub.status})
     return redirect("tracker:board")
 
 

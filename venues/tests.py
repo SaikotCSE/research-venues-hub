@@ -130,7 +130,23 @@ class SeedTests(TestCase):
 
     def test_status_mix_exists(self):
         statuses = {v.deadline_status for v in Venue.objects.prefetch_related("cycles")}
-        self.assertEqual(statuses, {"open", "upcoming", "rolling", "past"})
+        self.assertEqual(statuses, {"open", "upcoming", "rolling"})
+
+    def test_every_dated_venue_has_an_upcoming_cycle(self):
+        now = timezone.now()
+        missing = [v.acronym for v in Venue.objects.filter(is_rolling_submission=False) if not v.cycles.filter(submission_deadline__gte=now).exists()]
+        self.assertEqual(missing, [])
+
+    def test_reseed_preserves_verified_cycles(self):
+        cycle = Venue.objects.get(acronym="CVPR").next_cycle
+        verified_deadline = cycle.submission_deadline + timedelta(days=3)
+        cycle.submission_deadline = verified_deadline
+        cycle.mark_verified(save=False)
+        cycle.save()
+        call_command("seed_venues", verbosity=0)
+        cycle.refresh_from_db()
+        self.assertEqual(cycle.submission_deadline, verified_deadline)
+        self.assertFalse(cycle.is_projected)
 
 
 class ViewTests(TestCase):
@@ -192,6 +208,8 @@ class ViewTests(TestCase):
     def test_filter_status(self):
         self.assertTrue(self.acronyms(status="rolling") >= {"Nature", "JMLR"})
         self.assertNotIn("CVPR", self.acronyms(status="rolling"))
+        old = make_venue("OLDCONF")
+        make_cycle(old, -30, year=2020)  # only a past cycle -> "past"
         for status in ("open", "upcoming", "past"):
             got = self.acronyms(status=status)
             self.assertTrue(got, status)
@@ -264,7 +282,7 @@ class ViewTests(TestCase):
     def test_compare_limited_to_four(self):
         r = self.client.get(reverse("venues:compare"), {"s": ["cvpr", "icml", "iclr", "kdd", "nature"]}, **HX)
         self.assertEqual(r.status_code, 200)
-        self.assertEqual(r.content.decode().count("hover:text-brand-600"), 4)
+        self.assertEqual(len(r.context["venues"]), 4)
 
     def test_compare_empty(self):
         self.assertContains(self.client.get(reverse("venues:compare"), **HX), "Tick")

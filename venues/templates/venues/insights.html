@@ -2,20 +2,20 @@
 {% load static %}
 {% block title %}Insights · VenuePulse{% endblock %}
 {% block content %}
-<h1 class="mb-4 text-2xl font-bold">Insights</h1>
+<header class="mb-6"><h1 class="text-2xl font-bold tracking-tight">Insights</h1><p class="muted mt-1 text-sm">How the catalogue breaks down — and when the deadlines cluster. Raw data: <a class="link" href="{% url 'venues:api_insights' %}">/api/insights/</a>.</p></header>
 <div class="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4">
-  <div class="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900"><div class="text-3xl font-bold">{{ data.totals.venues }}</div><div class="text-sm text-slate-500">Venues</div></div>
-  <div class="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900"><div class="text-3xl font-bold">{{ data.totals.upcoming }}</div><div class="text-sm text-slate-500">Upcoming deadlines</div></div>
-  <div class="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900"><div class="text-3xl font-bold text-rose-600">{{ data.totals.closing_30d }}</div><div class="text-sm text-slate-500">Closing within 30 days</div></div>
-  <div class="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900"><div class="text-3xl font-bold">{{ data.totals.cycles }}</div><div class="text-sm text-slate-500">Tracked cycles</div></div>
+  <div class="card p-4"><div class="text-3xl font-bold">{{ data.totals.venues }}</div><div class="text-sm text-slate-500">Venues</div></div>
+  <div class="card p-4"><div class="text-3xl font-bold">{{ data.totals.upcoming }}</div><div class="text-sm text-slate-500">Upcoming deadlines</div></div>
+  <div class="card p-4"><div class="text-3xl font-bold text-rose-600">{{ data.totals.closing_30d }}</div><div class="text-sm text-slate-500">Closing within 30 days</div></div>
+  <div class="card p-4"><div class="text-3xl font-bold">{{ data.totals.cycles }}</div><div class="text-sm text-slate-500">Tracked cycles</div></div>
 </div>
 <div class="grid gap-4 lg:grid-cols-2">
-  <section class="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900"><h2 class="mb-2 font-semibold">Paper deadlines per month (next 12)</h2><div class="h-64"><canvas id="c-months"></canvas></div></section>
-  <section class="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900"><h2 class="mb-2 font-semibold">Venues by research domain</h2><div class="h-64"><canvas id="c-domain"></canvas></div></section>
-  <section class="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900"><h2 class="mb-2 font-semibold">CORE ranks (conferences) &amp; quartiles (journals)</h2><div class="h-64"><canvas id="c-rank"></canvas></div></section>
-  <section class="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900"><h2 class="mb-2 font-semibold">Acceptance rate vs h5-index (conferences)</h2><div class="h-64"><canvas id="c-scatter"></canvas></div></section>
-  <section class="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900"><h2 class="mb-2 font-semibold">Top journals by impact factor</h2><div class="h-64"><canvas id="c-if"></canvas></div></section>
-  <section class="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900"><h2 class="mb-2 font-semibold">Venues by continent</h2><div class="h-64"><canvas id="c-cont"></canvas></div></section>
+  <section class="card p-4"><h2 class="mb-2 font-semibold">Paper deadlines per month (next 12)</h2><div class="h-64"><canvas id="c-months" role="img" aria-label="Bar chart of paper deadlines per month for the next 12 months"></canvas></div></section>
+  <section class="card p-4"><h2 class="mb-2 font-semibold">Venues by research domain</h2><div class="h-64"><canvas id="c-domain" role="img" aria-label="Horizontal bar chart of venue counts by research domain"></canvas></div></section>
+  <section class="card p-4"><h2 class="mb-2 font-semibold">CORE ranks (conferences) &amp; quartiles (journals)</h2><div class="h-64"><canvas id="c-rank" role="img" aria-label="Bar chart of CORE ranks for conferences and quartiles for journals"></canvas></div></section>
+  <section class="card p-4"><h2 class="mb-2 font-semibold">Acceptance rate vs h5-index (conferences)</h2><div class="h-64"><canvas id="c-scatter" role="img" aria-label="Scatter plot of acceptance rate against h5-index for conferences"></canvas></div></section>
+  <section class="card p-4"><h2 class="mb-2 font-semibold">Top journals by impact factor</h2><div class="h-64"><canvas id="c-if" role="img" aria-label="Horizontal bar chart of the ten journals with the highest impact factor"></canvas></div></section>
+  <section class="card p-4"><h2 class="mb-2 font-semibold">Venues by continent</h2><div class="h-64"><canvas id="c-cont" role="img" aria-label="Doughnut chart of venues by continent"></canvas></div></section>
 </div>
 {{ data|json_script:"insights-data" }}
 {% endblock %}

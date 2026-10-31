@@ -1,6 +1,8 @@
 """Idempotent seeding of 100+ research publication venues and their deadline cycles.
 
-Usage:  python manage.py seed_venues [--years-back 1 --years-forward 1] [--reset]
+Usage:  python manage.py seed_venues [--years-back 1 --years-forward 2] [--reset]
+
+Cycles that an editor has verified (``verified_at`` set) are never overwritten by re-seeding.
 
 Venue metadata (ranks, h5, impact factors, acceptance rates) is approximate and compiled
 from public sources; deadlines for future editions are *projections* extrapolated from the
@@ -39,7 +41,8 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument("--years-back", type=int, default=1)
-        parser.add_argument("--years-forward", type=int, default=1)
+        parser.add_argument("--years-forward", type=int, default=2,
+                            help="Look this many years ahead, stopping at the first edition whose deadline is still upcoming.")
         parser.add_argument("--reset", action="store_true", help="Delete existing venues first.")
 
     @transaction.atomic
@@ -56,8 +59,10 @@ class Command(BaseCommand):
                 for year in range(now.year - opts["years_back"], now.year + opts["years_forward"] + 1):
                     if row["acr"] in BIENNIAL and year % 2 != BIENNIAL[row["acr"]]:
                         continue
-                    self._upsert_cycle(venue, row, year, now)
+                    cycle = self._upsert_cycle(venue, row, year, now)
                     cycles += 1
+                    if cycle.submission_deadline >= now:
+                        break  # one projected upcoming edition is enough
         if opts["verbosity"] > 0:
             self.stdout.write(self.style.SUCCESS(
             f"Seeded {created + updated} venues ({created} created, {updated} updated) and {cycles} deadline cycles; "
@@ -92,9 +97,12 @@ class Command(BaseCommand):
         def at(md):
             return datetime.combine(_md(md, year, r["ev"]), end_of_day, tzinfo=tz) if md else None
 
+        existing = DeadlineCycle.objects.filter(venue=venue, year=year).first()
+        if existing and existing.verified_at:
+            return existing  # human-verified dates win over projections
         submission = at(r["sub"])
         ev_start = date(year, *map(int, r["ev"].split("-")))
-        DeadlineCycle.objects.update_or_create(
+        cycle, _ = DeadlineCycle.objects.update_or_create(
             venue=venue, year=year,
             defaults=dict(
                 label=f"{venue.acronym} {year}", timezone_label=r["tz"],
@@ -105,3 +113,4 @@ class Command(BaseCommand):
                 is_projected=submission >= now,
             ),
         )
+        return cycle

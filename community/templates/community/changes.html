@@ -1,15 +1,29 @@
 {% extends "venues/base.html" %}
-{% block title %}Deadline changes · VenuePulse{% endblock %}
+{% block title %}Deadline radar · VenuePulse{% endblock %}
+{% block meta_description %}Every recorded change to conference and journal deadlines — extensions, shifts and newly confirmed dates.{% endblock %}
 {% block content %}
-<h1 class="mb-1 text-2xl font-bold">Deadline radar</h1>
-<p class="mb-4 text-sm text-slate-500">Every change to a tracked date — extensions, shifts and confirmed dates.</p>
-<div class="max-w-3xl divide-y divide-slate-100 rounded-2xl border border-slate-200 bg-white dark:divide-slate-800 dark:border-slate-800 dark:bg-slate-900">
-  {% for c in items %}<div class="flex items-center gap-3 px-4 py-3 text-sm">
-    <a class="font-semibold hover:text-brand-600" href="{{ c.cycle.venue.get_absolute_url }}">{{ c.cycle }}</a>
-    <span class="text-slate-500">{{ c.field }}</span>
-    <span class="tnum">{{ c.old_value|date:"M j, Y"|default:"—" }} → {{ c.new_value|date:"M j, Y"|default:"—" }}</span>
-    {% if c.delta_days %}<span class="rounded px-1.5 text-xs {% if c.delta_days > 0 %}bg-emerald-100 text-emerald-800{% else %}bg-rose-100 text-rose-800{% endif %}">{{ c.delta_days|stringformat:"+d" }} d</span>{% endif %}
-    <span class="ml-auto text-xs text-slate-400">{{ c.changed_at|timesince }} ago</span></div>
-  {% empty %}<p class="p-6 text-center text-slate-500">No changes recorded yet.</p>{% endfor %}
+<header class="mb-6">
+  <h1 class="text-2xl font-bold tracking-tight">Deadline radar</h1>
+  <p class="muted mt-1 max-w-2xl">Every change to a tracked date — extensions, shifts and newly confirmed dates — newest first. Extensions are shown in green, pull-ins in red.</p>
+</header>
+{% if items %}
+<div class="card max-w-4xl divide-y divide-slate-100 dark:divide-slate-800">
+  {% for c in items %}
+  <div class="flex flex-wrap items-center gap-x-3 gap-y-1 px-5 py-3 text-sm">
+    <a class="font-semibold hover:text-brand-700 dark:hover:text-brand-300" href="{{ c.cycle.venue.get_absolute_url }}">{{ c.cycle }}</a>
+    <span class="muted">{{ c.field_label }}</span>
+    <span class="tnum">{{ c.old_value|date:"M j, Y"|default:"—" }} → <strong>{{ c.new_value|date:"M j, Y"|default:"—" }}</strong></span>
+    {% if c.delta_days %}<span class="badge {% if c.delta_days > 0 %}bg-emerald-100 text-emerald-800 dark:bg-emerald-400/15 dark:text-emerald-200{% else %}bg-rose-100 text-rose-800 dark:bg-rose-400/15 dark:text-rose-200{% endif %}">{{ c.delta_days|stringformat:"+d" }} d</span>{% endif %}
+    <span class="muted ml-auto text-xs">{{ c.changed_at|timesince }} ago</span>
+  </div>
+  {% endfor %}
 </div>
+{% else %}
+<div class="card flex max-w-4xl flex-col items-center px-6 py-14 text-center">
+  {% icon "rss" "h-10 w-10 text-slate-400" %}
+  <h2 class="mt-3 text-lg font-semibold">No date changes recorded yet</h2>
+  <p class="muted mt-1 max-w-md text-sm">When organisers extend a deadline or editors confirm projected dates, the change appears here. Spotted one? Open the venue page and suggest a correction.</p>
+  <a class="btn-secondary mt-5" href="{% url 'venues:list' %}">Browse venues</a>
+</div>
+{% endif %}
 {% endblock %}

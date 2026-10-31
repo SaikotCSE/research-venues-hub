@@ -362,3 +362,34 @@ class SnippetTests(TestCase):
 
         v = Venue.objects.get(slug="cvpr")
         self.assertIn(f"cvpr{v.next_cycle.year}", v.bibtex)
+
+
+class CompareTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        call_command("seed_venues", verbosity=0)
+
+    def rows(self, *slugs):
+        r = self.client.get(reverse("venues:compare"), {"s": list(slugs)})
+        return r, {row["key"]: row for row in r.context["rows"]}
+
+    def test_best_values_are_flagged(self):
+        r, rows = self.rows("cvpr", "iccv", "eccv")
+        self.assertEqual([c["best"] for c in rows["h5_index"]["cells"]], [True, False, False])  # CVPR has the highest h5
+        self.assertEqual([c["best"] for c in rows["acceptance_rate"]["cells"]], [True, False, False])  # lowest rate = most selective
+        self.assertEqual(sum(c["best"] for c in rows["next_deadline"]["cells"]), 1)
+        self.assertFalse(any(c["best"] for c in rows["type"]["cells"]))
+        self.assertContains(r, "(best)")
+
+    def test_ties_and_missing_values_are_not_flagged(self):
+        _, rows = self.rows("cvpr", "nature")
+        self.assertFalse(any(c["best"] for c in rows["impact_factor"]["cells"]), "only one venue has an IF")
+
+    def test_remove_links_on_full_page(self):
+        r, _ = self.rows("cvpr", "iccv")
+        self.assertEqual(r.context["remove_links"]["cvpr"], "?s=iccv")
+        self.assertContains(r, 'aria-label="Remove CVPR from comparison"')
+
+    def test_drawer_variant_uses_alpine_remove(self):
+        r = self.client.get(reverse("venues:compare"), {"s": ["cvpr", "iccv"]}, HTTP_HX_REQUEST="true")
+        self.assertContains(r, "$store.compare.toggle('cvpr'")

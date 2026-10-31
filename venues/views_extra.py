@@ -54,6 +54,11 @@ def plan_view(request):
         "ready": ready, "raw": raw or "", "rows": rows, "today": timezone.localdate(),
         "domains": list(Venue.objects.order_by("primary_domain").values_list("primary_domain", flat=True).distinct()),
         "domain": request.GET.get("domain", ""), "type_choices": Venue.VenueType.choices, "vtype": request.GET.get("type", ""),
+        "tips": [
+            ("Pick a realistic date", "Add a week of buffer for internal review, proofreading and the inevitable last-minute experiment."),
+            ("Mind the time zone", "Most CS conferences close at 23:59 Anywhere on Earth (UTC−12) — that is already the next day in Europe and Asia."),
+            ("Abstracts come first", "Many venues require an abstract registration about a week before the paper deadline."),
+        ],
     })
 
 

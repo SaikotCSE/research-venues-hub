@@ -56,7 +56,7 @@
         <span class="flex items-center gap-2">{% icon "sliders-horizontal" "h-4 w-4" %}Filters{% if chips %} <span class="rounded-full bg-brand-600 px-1.5 text-xs text-white">{{ chips|length }}</span>{% endif %}</span><span x-text="filtersOpen ? 'Hide' : 'Show'">Show</span>
       </button>
       <form id="filters" :class="filtersOpen ? '' : 'hidden lg:block'" class="card space-y-1 p-4 text-sm lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto"
-            hx-get="{% url 'venues:list' %}" hx-target="#results" hx-push-url="true" hx-trigger="change, input changed delay:300ms from:#q, submit" hx-indicator="#results" hx-sync="this:replace"
+            hx-get="{% url 'venues:list' %}" hx-target="#results" hx-push-url="true" hx-trigger="change, input changed delay:300ms from:#q, submit" hx-indicator="#results" hx-sync="this:queue last"
             @submit.prevent role="search" aria-label="Filter venues">
         <div class="pb-3">
           <label for="q" class="sr-only">Search venues</label>

@@ -91,12 +91,12 @@
         <div>
           <div class="mb-1 flex items-center justify-between"><h3 class="text-sm font-semibold">LaTeX preamble</h3>
             <button type="button" class="btn-ghost py-0.5 text-xs" @click="copy($refs.latex.textContent)">{% icon "copy" "h-3.5 w-3.5" %}Copy</button></div>
-          <pre x-ref="latex" class="overflow-auto rounded-lg bg-slate-900 p-3 text-xs text-slate-100">{{ venue.latex_snippet }}</pre>
+          <pre tabindex="0" x-ref="latex" class="overflow-auto rounded-lg bg-slate-900 p-3 text-xs text-slate-100">{{ venue.latex_snippet }}</pre>
         </div>
         <div>
           <div class="mb-1 flex items-center justify-between"><h3 class="text-sm font-semibold">BibTeX template</h3>
             <button type="button" class="btn-ghost py-0.5 text-xs" @click="copy($refs.bib.textContent)">{% icon "copy" "h-3.5 w-3.5" %}Copy</button></div>
-          <pre x-ref="bib" class="overflow-auto rounded-lg bg-slate-900 p-3 text-xs text-slate-100">{{ venue.bibtex }}</pre>
+          <pre tabindex="0" x-ref="bib" class="overflow-auto rounded-lg bg-slate-900 p-3 text-xs text-slate-100">{{ venue.bibtex }}</pre>
         </div>
       </div>
       <button type="button" class="btn-primary mt-3" @click="copy($refs.latex.textContent + '\n' + $refs.bib.textContent)">{% icon "copy" "h-4 w-4" %}<span x-text="copied ? 'Copied!' : 'Copy LaTeX / BibTeX info'">Copy LaTeX / BibTeX info</span></button>

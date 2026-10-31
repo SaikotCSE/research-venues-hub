@@ -294,6 +294,29 @@
       },
     }));
 
+    // Kanban drag & drop: POST the new status, then reload to show the server-rendered board + message.
+    Alpine.data('board', () => ({
+      over: null, dragged: null,
+      start(e, url, title) {
+        this.dragged = { url, title };
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', title);
+      },
+      async drop(e, status) {
+        this.over = null;
+        if (!this.dragged) return;
+        const body = new URLSearchParams({ status });
+        try {
+          const res = await fetch(this.dragged.url, { method: 'POST', headers: { ...csrfHeaders(), Accept: 'application/json', 'Content-Type': 'application/x-www-form-urlencoded' }, body });
+          if (!res.ok) throw new Error(String(res.status));
+          window.location.reload();
+        } catch (err) {
+          toast('Could not move the card — please try again', 'error');
+        }
+        this.dragged = null;
+      },
+    }));
+
     Alpine.data('copier', () => ({
       copied: false,
       async copy(text) {

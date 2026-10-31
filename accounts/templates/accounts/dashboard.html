@@ -1,55 +1,100 @@
 {% extends "venues/base.html" %}
-{% load venue_extras %}
 {% block title %}Dashboard · VenuePulse{% endblock %}
 {% block content %}
-<h1 class="mb-4 text-2xl font-bold">Welcome back, {{ user.profile.name }}</h1>
+<header class="mb-6 flex flex-wrap items-end gap-3">
+  <div>
+    <h1 class="text-2xl font-bold tracking-tight">Welcome back, {{ user.profile.name }}</h1>
+    <p class="muted mt-1 text-sm">Your deadlines, submissions and alerts at a glance.</p>
+  </div>
+  <div class="ml-auto flex gap-2">
+    <a href="{% url 'venues:recommend' %}" class="btn-secondary">{% icon "sparkles" "h-4 w-4" %}Find venues</a>
+    <a href="{% url 'tracker:create' %}" class="btn-primary">{% icon "plus" "h-4 w-4" %}Track submission</a>
+  </div>
+</header>
+
+{% if not onboarding_done %}
+<section class="card mb-6 border-brand-200 bg-gradient-to-br from-brand-50 to-white p-5 dark:border-brand-500/30 dark:from-brand-500/10 dark:to-slate-900" aria-labelledby="onboarding-h">
+  <h2 id="onboarding-h" class="font-semibold">Get the most out of VenuePulse</h2>
+  <ol class="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+    {% for label, done, url in onboarding %}
+    <li><a href="{{ url }}" class="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm {% if done %}border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-100{% else %}border-slate-200 bg-white hover:border-brand-300 dark:border-slate-700 dark:bg-slate-900{% endif %}">
+      <span class="grid h-5 w-5 shrink-0 place-items-center rounded-full text-[11px] font-bold {% if done %}bg-emerald-600 text-white{% else %}bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200{% endif %}" aria-hidden="true">{% if done %}✓{% else %}{{ forloop.counter }}{% endif %}</span>
+      <span class="{% if done %}line-through decoration-emerald-600/40{% endif %}">{{ label }}</span><span class="sr-only">{% if done %}(done){% else %}(to do){% endif %}</span></a></li>
+    {% endfor %}
+  </ol>
+</section>
+{% endif %}
+
 <div class="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4">
-  <a href="{% url 'venues:targets' %}" class="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900"><div class="text-3xl font-bold">{{ target_count }}</div><div class="text-sm text-slate-500">Target venues</div></a>
-  <a href="{% url 'tracker:board' %}" class="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900"><div class="text-3xl font-bold">{{ submissions|length }}</div><div class="text-sm text-slate-500">Active submissions</div></a>
-  <a href="{% url 'accounts:notifications' %}" class="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900"><div class="text-3xl font-bold">{{ unread_count }}</div><div class="text-sm text-slate-500">Unread notifications</div></a>
-  <a href="{% url 'accounts:lists' %}" class="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900"><div class="text-3xl font-bold">{{ lists|length }}</div><div class="text-sm text-slate-500">Venue lists</div></a>
+  <a href="{% url 'venues:targets' %}" class="card p-4 transition hover:shadow-md"><span class="muted block text-xs">Target venues</span><span class="tnum block text-3xl font-bold">{{ target_count }}</span></a>
+  <a href="{% url 'tracker:board' %}" class="card p-4 transition hover:shadow-md"><span class="muted block text-xs">Active submissions</span><span class="tnum block text-3xl font-bold">{{ submissions|length }}</span></a>
+  <a href="{% url 'accounts:notifications' %}" class="card p-4 transition hover:shadow-md"><span class="muted block text-xs">Unread notifications</span><span class="tnum block text-3xl font-bold">{{ unread_count }}</span></a>
+  <a href="{% url 'accounts:lists' %}" class="card p-4 transition hover:shadow-md"><span class="muted block text-xs">Venue lists</span><span class="tnum block text-3xl font-bold">{{ lists|length }}</span></a>
 </div>
+
 <div class="grid gap-6 lg:grid-cols-3">
-  <section class="rounded-2xl border border-slate-200 bg-white p-4 lg:col-span-2 dark:border-slate-800 dark:bg-slate-900">
-    <h2 class="mb-3 font-semibold">Next 120 days — your starred venues</h2>
-    {% for c in cycles %}
-    <div x-data="countdown('{{ c.submission_deadline.isoformat }}')" class="flex items-center gap-3 border-t border-slate-100 py-2 first:border-0 dark:border-slate-800">
-      <a href="{{ c.venue.get_absolute_url }}" class="w-24 font-semibold hover:text-brand-600">{{ c.venue.acronym }} {{ c.year }}</a>
-      <span class="text-sm text-slate-500" x-text="aoe"></span>
-      <span class="tnum ml-auto font-semibold" :class="urgent ? 'text-rose-600 dark:text-rose-400' : ''" x-text="`${d}d ${h}:${m}:${s}`"></span>
-    </div>
-    {% empty %}<p class="text-sm text-slate-500">Nothing due soon. <a class="underline" href="{% url 'venues:list' %}">Star some venues</a> to see them here.</p>{% endfor %}
+  <section class="card p-5 lg:col-span-2" aria-labelledby="upcoming-h">
+    <h2 id="upcoming-h" class="mb-3 flex items-center gap-2 font-semibold">{% icon "clock" "h-4 w-4 text-slate-500" %}Your next 120 days</h2>
+    {% if cycles %}
+    <ul class="divide-y divide-slate-100 dark:divide-slate-800">
+      {% for c in cycles %}
+      <li x-data="countdown('{{ c.submission_deadline.isoformat }}')" class="flex flex-wrap items-center gap-x-3 gap-y-1 py-2.5">
+        <a href="{{ c.venue.get_absolute_url }}" class="w-32 font-semibold hover:text-brand-700 dark:hover:text-brand-300">{{ c.venue.acronym }} {{ c.year }}</a>
+        <span class="muted text-sm" x-text="local">{{ c.submission_deadline|date:"M j, Y H:i" }} UTC</span>
+        {% if c.is_projected %}<span class="badge bg-amber-100 font-medium text-amber-900 dark:bg-amber-400/15 dark:text-amber-200">projected</span>{% endif %}
+        <span class="tnum ml-auto font-semibold" :class="urgent ? 'text-rose-700 dark:text-rose-300' : ''" x-text="`${d}d ${h}:${m}:${s}`">{{ c.submission_deadline|timeuntil }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="muted text-sm">Nothing due in the next 120 days. <a class="link" href="{% url 'venues:list' %}">Star a few venues</a> to see their deadlines here.</p>
+    {% endif %}
   </section>
-  <section class="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
-    <h2 class="mb-3 font-semibold">Notifications</h2>
-    {% for n in notifications %}<a href="{{ n.url|default:'#' }}" class="block border-t border-slate-100 py-1.5 text-sm first:border-0 dark:border-slate-800">{{ n.message }}</a>
-    {% empty %}<p class="text-sm text-slate-500">You're all caught up.</p>{% endfor %}
+
+  <section class="card p-5" aria-labelledby="notif-h">
+    <div class="mb-3 flex items-center"><h2 id="notif-h" class="flex items-center gap-2 font-semibold">{% icon "bell" "h-4 w-4 text-slate-500" %}Notifications</h2>
+      <a class="link ml-auto text-xs" href="{% url 'accounts:notifications' %}">View all</a></div>
+    {% for n in notifications %}<a href="{{ n.url|default:'#' }}" class="block border-t border-slate-100 py-2 text-sm first:border-0 hover:text-brand-700 dark:border-slate-800 dark:hover:text-brand-300">{{ n.message }}<span class="muted block text-xs">{{ n.created_at|timesince }} ago</span></a>
+    {% empty %}<p class="muted text-sm">You’re all caught up.</p>{% endfor %}
   </section>
-  <section class="rounded-2xl border border-slate-200 bg-white p-4 lg:col-span-2 dark:border-slate-800 dark:bg-slate-900">
-    <h2 class="mb-3 font-semibold">Active submissions</h2>
+
+  <section class="card p-5 lg:col-span-2" aria-labelledby="subs-h">
+    <div class="mb-3 flex items-center"><h2 id="subs-h" class="flex items-center gap-2 font-semibold">{% icon "kanban" "h-4 w-4 text-slate-500" %}Active submissions</h2>
+      <a class="link ml-auto text-xs" href="{% url 'tracker:board' %}">Open board</a></div>
     {% for s in submissions %}
-    <a href="{% url 'tracker:detail' s.pk %}" class="flex items-center gap-2 border-t border-slate-100 py-2 first:border-0 dark:border-slate-800">
-      <span class="font-medium">{{ s.paper.title|truncatechars:50 }}</span><span class="text-slate-500">→ {{ s.venue.acronym }}</span>
-      <span class="ml-auto rounded bg-slate-100 px-2 py-0.5 text-xs dark:bg-slate-800">{{ s.get_status_display }}</span>
-      {% if s.days_to_deadline is not None %}<span class="text-xs text-rose-600">{{ s.days_to_deadline }}d left</span>{% endif %}</a>
-    {% empty %}<p class="text-sm text-slate-500">No active submissions. <a class="underline" href="{% url 'tracker:create' %}">Track one</a>.</p>{% endfor %}
+    <a href="{% url 'tracker:detail' s.pk %}" class="flex flex-wrap items-center gap-2 border-t border-slate-100 py-2.5 first:border-0 hover:text-brand-700 dark:border-slate-800 dark:hover:text-brand-300">
+      <span class="min-w-0 flex-1 truncate font-medium">{{ s.paper.title }}</span><span class="muted text-sm">→ {{ s.venue.acronym }}</span>
+      <span class="badge bg-slate-100 font-medium text-slate-700 dark:bg-slate-800 dark:text-slate-300">{{ s.get_status_display }}</span>
+      {% if s.days_to_deadline is not None %}<span class="text-xs font-medium {% if s.days_to_deadline < 7 %}text-rose-700 dark:text-rose-300{% else %}text-slate-600 dark:text-slate-400{% endif %}">{{ s.days_to_deadline }}d left</span>{% endif %}</a>
+    {% empty %}<p class="muted text-sm">No active submissions. <a class="link" href="{% url 'tracker:create' %}">Track one</a> to get a venue-specific checklist.</p>{% endfor %}
   </section>
-  <section class="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
-    <h2 class="mb-3 font-semibold">Saved searches</h2>
-    {% for s in saved_searches %}<div class="flex items-center gap-2 py-1 text-sm"><a class="hover:text-brand-600" href="{% url 'venues:list' %}?{{ s.querystring }}">{{ s.name }}</a>{% if s.alert %}{% icon "bell" "h-3.5 w-3.5 text-amber-500" %}{% endif %}
-      <form class="ml-auto" method="post" action="{% url 'accounts:search_delete' s.pk %}">{% csrf_token %}<button class="text-xs text-slate-400 hover:text-rose-600" aria-label="Delete">✕</button></form></div>
-    {% empty %}<p class="text-sm text-slate-500">Save a filter combination from the Explore page.</p>{% endfor %}
+
+  <section class="card p-5" aria-labelledby="ss-h">
+    <h2 id="ss-h" class="mb-3 flex items-center gap-2 font-semibold">{% icon "search" "h-4 w-4 text-slate-500" %}Saved searches</h2>
+    {% for s in saved_searches %}
+    <div class="flex items-center gap-2 border-t border-slate-100 py-2 text-sm first:border-0 dark:border-slate-800">
+      <a class="flex-1 truncate hover:text-brand-700 dark:hover:text-brand-300" href="{% url 'venues:list' %}?{{ s.querystring }}">{{ s.name }}</a>
+      {% if s.alert %}<span title="Alerts on">{% icon "bell" "h-3.5 w-3.5 text-amber-500" label="Alerts on" %}</span>{% endif %}
+      <form method="post" action="{% url 'accounts:search_delete' s.pk %}">{% csrf_token %}<button class="btn-ghost p-1" aria-label="Delete saved search {{ s.name }}">{% icon "trash-2" "h-3.5 w-3.5" %}</button></form>
+    </div>
+    {% empty %}<p class="muted text-sm">Save any filter combination from <a class="link" href="{% url 'venues:list' %}">Explore</a> and get alerted when new venues match.</p>{% endfor %}
   </section>
-  <section class="rounded-2xl border border-slate-200 bg-white p-4 lg:col-span-2 dark:border-slate-800 dark:bg-slate-900">
-    <h2 class="mb-3 font-semibold">Recommended for your interests</h2>
-    {% for r in recs %}<a href="{{ r.venue.get_absolute_url }}" class="flex items-center gap-2 border-t border-slate-100 py-1.5 text-sm first:border-0 dark:border-slate-800"><b>{{ r.venue.acronym }}</b><span class="truncate text-slate-500">{{ r.venue.name }}</span><span class="ml-auto text-xs">{{ r.percent }}%</span></a>
-    {% empty %}<p class="text-sm text-slate-500">Add research interests in your <a class="underline" href="{% url 'accounts:profile' %}">profile</a> to get suggestions.</p>{% endfor %}
+
+  <section class="card p-5 lg:col-span-2" aria-labelledby="recs-h">
+    <h2 id="recs-h" class="mb-3 flex items-center gap-2 font-semibold">{% icon "sparkles" "h-4 w-4 text-slate-500" %}Recommended for your interests</h2>
+    {% for r in recs %}
+    <a href="{{ r.venue.get_absolute_url }}" class="flex items-center gap-3 border-t border-slate-100 py-2 text-sm first:border-0 hover:text-brand-700 dark:border-slate-800 dark:hover:text-brand-300">
+      <span class="w-24 font-semibold">{{ r.venue.acronym }}</span><span class="muted min-w-0 flex-1 truncate">{{ r.venue.name }}</span>
+      <span class="tnum w-12 text-right text-xs font-semibold text-brand-700 dark:text-brand-300">{{ r.percent }}%</span></a>
+    {% empty %}<p class="muted text-sm">Add research interests to your <a class="link" href="{% url 'accounts:profile' %}">profile</a> to get personalised venue suggestions.</p>{% endfor %}
   </section>
-  <section class="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
-    <h2 class="mb-2 font-semibold">Subscribe in your calendar</h2>
-    <p class="mb-2 text-xs text-slate-500">Private iCal feed of your starred venues and active submissions.</p>
-    <div x-data="copier"><input readonly value="{{ calendar_url }}" class="w-full rounded border border-slate-300 bg-transparent px-2 py-1 text-xs dark:border-slate-700" @focus="$el.select()">
-      <button type="button" class="mt-1 text-xs text-brand-600 underline" @click="copy('{{ calendar_url }}')" x-text="copied ? 'Copied!' : 'Copy link'"></button></div>
+
+  <section class="card p-5" aria-labelledby="cal-h" x-data="copier">
+    <h2 id="cal-h" class="flex items-center gap-2 font-semibold">{% icon "calendar-days" "h-4 w-4 text-slate-500" %}Calendar feed</h2>
+    <p class="muted mt-1 text-xs">Private iCal feed of your starred venues and active submissions.</p>
+    <label for="dash-cal" class="sr-only">Calendar feed URL</label>
+    <input id="dash-cal" readonly value="{{ calendar_url }}" class="input mt-2 font-mono text-xs" @focus="$el.select()">
+    <button type="button" class="btn-secondary mt-2 w-full" @click="copy('{{ calendar_url|escapejs }}')">{% icon "copy" "h-4 w-4" %}<span x-text="copied ? 'Copied!' : 'Copy link'">Copy link</span></button>
   </section>
 </div>
 {% endblock %}

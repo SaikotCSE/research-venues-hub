@@ -122,3 +122,15 @@ class TrackerTests(TestCase):
         t = self.user.profile.api_token
         data = self.client.get(reverse("venues:api_me_submissions"), HTTP_AUTHORIZATION=f"Bearer {t}").json()
         self.assertEqual(data["results"][0]["venue"], "CVPR")
+
+
+class TrackerDragDropTests(TestCase):
+    def test_json_status_change_keeps_flash_message_for_reload(self):
+        call_command("seed_venues", verbosity=0)
+        user = User.objects.create_user("dd", "dd@example.com", "pw-12345-xyz")
+        venue = Venue.objects.get(slug="cvpr")
+        sub = Submission.objects.create(user=user, paper=Paper.objects.create(user=user, title="P"), venue=venue)
+        self.client.force_login(user)
+        r = self.client.post(reverse("tracker:status", args=[sub.pk]), {"status": "writing"}, HTTP_ACCEPT="application/json")
+        self.assertEqual(r.json(), {"status": "writing"})
+        self.assertContains(self.client.get(reverse("tracker:board")), "Moved “P” to Writing")

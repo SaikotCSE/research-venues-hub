@@ -27,13 +27,13 @@
         <div class="inline-flex rounded-lg border border-slate-300 p-0.5 text-sm dark:border-slate-700" role="group" aria-label="Language">
           {% for key, label in langs %}<button type="button" class="rounded-md px-3 py-1" :class="tab === '{{ key }}' ? 'bg-brand-600 text-white' : ''" :aria-pressed="(tab === '{{ key }}').toString()" @click="tab = '{{ key }}'">{{ label }}</button>{% endfor %}
         </div>
-<pre x-show="tab === 'curl'" class="overflow-auto rounded-xl bg-slate-900 p-4 text-xs leading-relaxed text-slate-100"># A* conferences with a paper deadline in the next 60 days
+<pre tabindex="0" x-show="tab === 'curl'" class="overflow-auto rounded-xl bg-slate-900 p-4 text-xs leading-relaxed text-slate-100"># A* conferences with a paper deadline in the next 60 days
 curl "{{ host }}/api/venues/?core=A*&amp;within=60&amp;sort=deadline"
 
 # Star a venue with your token
 curl -X POST -H "Authorization: Bearer $VENUEPULSE_TOKEN" -H "Content-Type: application/json" \
      -d '{"slug": "neurips"}' {{ host }}/api/v1/me/targets/</pre>
-<pre x-show="tab === 'python'" x-cloak class="overflow-auto rounded-xl bg-slate-900 p-4 text-xs leading-relaxed text-slate-100">import requests
+<pre tabindex="0" x-show="tab === 'python'" x-cloak class="overflow-auto rounded-xl bg-slate-900 p-4 text-xs leading-relaxed text-slate-100">import requests
 
 url = "{{ host }}/api/venues/"
 params = {"type": "Journal", "quartile": "Q1", "min_if": 10, "page_size": 50}
@@ -42,7 +42,7 @@ while url:
     for venue in page["results"]:
         print(venue["acronym"], venue["impact_factor"], venue["url"])
     url, params = page["next"], None   # follow pagination links</pre>
-<pre x-show="tab === 'js'" x-cloak class="overflow-auto rounded-xl bg-slate-900 p-4 text-xs leading-relaxed text-slate-100">// Public endpoints send CORS headers, so this works from any website.
+<pre tabindex="0" x-show="tab === 'js'" x-cloak class="overflow-auto rounded-xl bg-slate-900 p-4 text-xs leading-relaxed text-slate-100">// Public endpoints send CORS headers, so this works from any website.
 const res = await fetch("{{ host }}/api/venues/?status=open&amp;sort=deadline&amp;page_size=5");
 const { results } = await res.json();
 results.forEach(v =&gt; console.log(v.acronym, v.next_deadline?.at));</pre>
@@ -62,7 +62,7 @@ results.forEach(v =&gt; console.log(v.acronym, v.next_deadline?.at));</pre>
         {% for example in try_examples %}<button type="button" class="chip font-mono" @click="path = '{{ example|escapejs }}'; run()">{{ example }}</button>{% endfor %}
       </div>
       <p x-show="status" x-cloak class="mt-3 text-xs font-semibold" x-text="status"></p>
-      <pre x-show="out" x-cloak class="mt-1 max-h-96 overflow-auto rounded-xl bg-slate-900 p-4 text-xs text-slate-100" x-text="out"></pre>
+      <pre tabindex="0" x-show="out" x-cloak class="mt-1 max-h-96 overflow-auto rounded-xl bg-slate-900 p-4 text-xs text-slate-100" x-text="out"></pre>
     </section>
 
     <section id="conventions" aria-labelledby="conv-h">

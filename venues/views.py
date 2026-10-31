@@ -199,7 +199,59 @@ def compare(request):
     venues = list(_base_qs().filter(slug__in=slugs))
     venues.sort(key=lambda v: slugs.index(v.slug))
     template = "venues/partials/compare_table.html" if _is_htmx(request) else "venues/compare.html"
-    return render(request, template, {"venues": venues, "max_compare": MAX_COMPARE})
+    remove_links = {}
+    for v in venues:
+        rest = [s for s in slugs if s != v.slug]
+        remove_links[v.slug] = "?" + "&".join(f"s={s}" for s in rest)
+    return render(request, template, {
+        "venues": venues, "rows": compare_rows(venues), "max_compare": MAX_COMPARE,
+        "remove_links": remove_links, "is_drawer": _is_htmx(request),
+    })
+
+
+RANK_SCORE = {"A*": 5, "A": 4, "B": 3, "C": 2, "Q1": 5, "Q2": 4, "Q3": 3, "Q4": 2}
+
+
+def _best(values, pick):
+    """Indices of the best non-null values (max or min); none when fewer than two venues have data."""
+    present = [(i, v) for i, v in enumerate(values) if v is not None]
+    if len(present) < 2:
+        return set()
+    target = (max if pick == "max" else min)(v for _, v in present)
+    if all(v == target for _, v in present):
+        return set()
+    return {i for i, v in present if v == target}
+
+
+def compare_rows(venues):
+    """Rows for the comparison table; numeric rows flag the best value(s)."""
+    def rank_score(v):
+        return max(RANK_SCORE.get(v.core_rank, 0), {"A": 5, "B": 3, "C": 2}.get(v.ccf_rank, 0), RANK_SCORE.get(v.quartile, 0)) or None
+
+    deadlines = [v.next_deadline[1] if v.next_deadline else None for v in venues]
+    spec = [
+        ("Type", [v.venue_type for v in venues], None, None),
+        ("Domain", [v.primary_domain for v in venues], None, None),
+        ("Rank", [v.rank_label for v in venues], [rank_score(v) for v in venues], "max"),
+        ("h5-index", [v.h5_index for v in venues], [v.h5_index for v in venues], "max"),
+        ("Impact factor", [v.impact_factor for v in venues], [v.impact_factor for v in venues], "max"),
+        ("Acceptance rate", [f"{v.acceptance_rate:.1f}%" if v.acceptance_rate else None for v in venues], [v.acceptance_rate for v in venues], "min"),
+        ("Next deadline", deadlines, deadlines, "min"),
+        ("Notification", [v.next_cycle.notification_date if v.next_cycle else None for v in venues], None, None),
+        ("Event", [v.next_cycle if v.next_cycle and v.next_cycle.event_start_date else None for v in venues], None, None),
+        ("Page limit", [v.page_limit for v in venues], None, None),
+        ("Template", [v.formatting_style for v in venues], None, None),
+        ("Peer review", [v.review_process for v in venues], None, None),
+        ("Open access", [("Yes" + (f" · APC ${v.apc_cost_usd:,}" if v.apc_cost_usd else "")) if v.is_open_access else "No" for v in venues], None, None),
+        ("Location", [f"{v.country_flag_emoji} {v.city + ', ' if v.city else ''}{v.country}" for v in venues], None, None),
+        ("Publisher", [v.publisher for v in venues], None, None),
+    ]
+    rows = []
+    for label, values, scores, pick in spec:
+        best = _best(scores, pick) if scores else set()
+        rows.append({"label": label, "key": label.lower().replace(" ", "_").replace("-", "_"),
+                     "cells": [{"value": val, "best": i in best} for i, val in enumerate(values)]})
+    return rows
 
 
 # ---------------------------------------------------------------- bookmarks
