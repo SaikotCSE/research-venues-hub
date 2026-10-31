@@ -1,11 +1,23 @@
 from datetime import timedelta
 
+from django.conf import settings
 from django.db import models
+from django.db.models import Q
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.text import slugify
 
 AOE_OFFSET = timedelta(hours=-12)
+
+
+class HttpsURLField(models.URLField):
+    """URLField whose form field assumes https:// for scheme-less input (Django 6 default)."""
+
+    def formfield(self, **kwargs):
+        from django import forms
+
+        kwargs.setdefault("form_class", type("_HttpsURL", (forms.URLField,), {"__init__": lambda self, *a, **kw: forms.URLField.__init__(self, *a, assume_scheme="https", **kw)}))
+        return super().formfield(**kwargs)
 
 
 class ResearchSubfield(models.Model):
@@ -100,14 +112,14 @@ class Venue(models.Model):
     # (g) formatting & submission guidelines
     page_limit = models.CharField(max_length=80, blank=True, help_text="e.g. '9 pages + references'")
     formatting_style = models.CharField(max_length=80, blank=True)
-    template_url = models.URLField(max_length=300, blank=True)
+    template_url = HttpsURLField(max_length=300, blank=True)
     review_process = models.CharField(max_length=20, choices=ReviewProcess.choices, default=ReviewProcess.SINGLE_BLIND, db_index=True)
     is_open_access = models.BooleanField(default=False, db_index=True)
     apc_cost_usd = models.PositiveIntegerField(null=True, blank=True, help_text="Article processing charge (USD)")
     acceptance_rate = models.DecimalField(max_digits=5, decimal_places=1, null=True, blank=True, help_text="Percent")
     publisher = models.CharField(max_length=80, blank=True, db_index=True)
-    official_website = models.URLField(max_length=300, blank=True)
-    submission_portal_url = models.URLField(max_length=300, blank=True)
+    official_website = HttpsURLField(max_length=300, blank=True)
+    submission_portal_url = HttpsURLField(max_length=300, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -298,9 +310,10 @@ class DeadlineCycle(models.Model):
 
 
 class VenueBookmark(models.Model):
-    """Per-browser-session starred venues and personal notes (no login required)."""
+    """Starred venues + personal notes. Owned by a user, or by an anonymous browser (``anon_key``)."""
 
-    session_key = models.CharField(max_length=64, db_index=True)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, null=True, blank=True, related_name="bookmarks")
+    anon_key = models.CharField(max_length=64, blank=True, db_index=True)
     venue = models.ForeignKey(Venue, on_delete=models.CASCADE, related_name="bookmarks")
     is_starred = models.BooleanField(default=True)
     note = models.TextField(blank=True)
@@ -308,7 +321,10 @@ class VenueBookmark(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        constraints = [models.UniqueConstraint(fields=["session_key", "venue"], name="uniq_bookmark_session_venue")]
+        constraints = [
+            models.UniqueConstraint(fields=["user", "venue"], condition=Q(user__isnull=False), name="uniq_bookmark_user_venue"),
+            models.UniqueConstraint(fields=["anon_key", "venue"], condition=Q(user__isnull=True), name="uniq_bookmark_anon_venue"),
+        ]
         ordering = ["-updated_at"]
 
     def __str__(self):

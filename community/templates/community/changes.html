@@ -1,0 +1,15 @@
+{% extends "venues/base.html" %}
+{% block title %}Deadline changes · VenuePulse{% endblock %}
+{% block content %}
+<h1 class="mb-1 text-2xl font-bold">Deadline radar</h1>
+<p class="mb-4 text-sm text-slate-500">Every change to a tracked date — extensions, shifts and confirmed dates.</p>
+<div class="max-w-3xl divide-y divide-slate-100 rounded-2xl border border-slate-200 bg-white dark:divide-slate-800 dark:border-slate-800 dark:bg-slate-900">
+  {% for c in items %}<div class="flex items-center gap-3 px-4 py-3 text-sm">
+    <a class="font-semibold hover:text-brand-600" href="{{ c.cycle.venue.get_absolute_url }}">{{ c.cycle }}</a>
+    <span class="text-slate-500">{{ c.field }}</span>
+    <span class="tnum">{{ c.old_value|date:"M j, Y"|default:"—" }} → {{ c.new_value|date:"M j, Y"|default:"—" }}</span>
+    {% if c.delta_days %}<span class="rounded px-1.5 text-xs {% if c.delta_days > 0 %}bg-emerald-100 text-emerald-800{% else %}bg-rose-100 text-rose-800{% endif %}">{{ c.delta_days|stringformat:"+d" }} d</span>{% endif %}
+    <span class="ml-auto text-xs text-slate-400">{{ c.changed_at|timesince }} ago</span></div>
+  {% empty %}<p class="p-6 text-center text-slate-500">No changes recorded yet.</p>{% endfor %}
+</div>
+{% endblock %}

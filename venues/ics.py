@@ -5,7 +5,8 @@ from django.utils import timezone
 
 
 def _escape(text):
-    return str(text).replace("\\", "\\\\").replace(";", "\;").replace(",", "\\,").replace("\r\n", "\\n").replace("\n", "\\n")
+    text = str(text).replace("\\", "\\\\").replace(";", "\\;").replace(",", "\\,")
+    return text.replace("\r\n", "\\n").replace("\n", "\\n")
 
 
 def _fold(line):
@@ -29,17 +30,18 @@ def _utc(dt):
     return dt.astimezone(dt_timezone.utc).strftime("%Y%m%dT%H%M%SZ")
 
 
-def build_calendar(venue, cycles, request_host="venuepulse"):
+def _build(name, cycles, host):
     now = timezone.now()
     lines = [
         "BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//VenuePulse//Deadlines Hub//EN",
-        "CALSCALE:GREGORIAN", "METHOD:PUBLISH", f"X-WR-CALNAME:{_escape(venue.acronym)} deadlines",
+        "CALSCALE:GREGORIAN", "METHOD:PUBLISH", f"X-WR-CALNAME:{_escape(name)}",
     ]
     for cycle in cycles:
+        venue = cycle.venue
         for key, label, value in cycle.milestones():
-            uid = f"{venue.slug}-{cycle.year}-{key}@{request_host}"
+            uid = f"{venue.slug}-{cycle.year}-{key}@{host}"
             summary = f"{venue.acronym} {cycle.year}: {label}"
-            desc = f"{venue.name}\\n{label} ({cycle.timezone_label})\\n{venue.official_website}"
+            desc = f"{_escape(venue.name)}\\n{label} ({cycle.timezone_label})\\n{venue.official_website}"
             lines += ["BEGIN:VEVENT", f"UID:{uid}", f"DTSTAMP:{_utc(now)}", f"SUMMARY:{_escape(summary)}", f"DESCRIPTION:{desc}"]
             if venue.official_website:
                 lines.append(f"URL:{venue.official_website}")
@@ -47,8 +49,16 @@ def build_calendar(venue, cycles, request_host="venuepulse"):
                 lines += [f"DTSTART:{_utc(value)}", f"DTEND:{_utc(value + timedelta(minutes=30))}"]
                 lines += ["BEGIN:VALARM", "ACTION:DISPLAY", f"DESCRIPTION:{_escape(summary)}", "TRIGGER:-P1D", "END:VALARM"]
             else:  # all-day event dates
-                end = value + timedelta(days=1)
-                lines += [f"DTSTART;VALUE=DATE:{value.strftime('%Y%m%d')}", f"DTEND;VALUE=DATE:{end.strftime('%Y%m%d')}"]
+                lines += [f"DTSTART;VALUE=DATE:{value.strftime('%Y%m%d')}", f"DTEND;VALUE=DATE:{(value + timedelta(days=1)).strftime('%Y%m%d')}"]
             lines.append("END:VEVENT")
     lines.append("END:VCALENDAR")
     return "\r\n".join(_fold(l) for l in lines) + "\r\n"
+
+
+def build_calendar(venue, cycles, request_host="venuepulse"):
+    return _build(f"{venue.acronym} deadlines", cycles, request_host)
+
+
+def build_multi_calendar(name, cycles, request_host="venuepulse"):
+    """Calendar for many venues; ``cycles`` should be select_related('venue')."""
+    return _build(name, cycles, request_host)

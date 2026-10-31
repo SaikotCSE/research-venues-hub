@@ -19,6 +19,9 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "venues",
+    "accounts",
+    "tracker",
+    "community",
 ]
 
 MIDDLEWARE = [
@@ -43,6 +46,7 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                "accounts.context_processors.nav",
             ],
         },
     },
@@ -88,3 +92,10 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 SESSION_COOKIE_AGE = 60 * 60 * 24 * 365  # bookmarks live in the session for a year
+
+LOGIN_URL = "accounts:login"
+LOGIN_REDIRECT_URL = "accounts:dashboard"
+LOGOUT_REDIRECT_URL = "venues:list"
+EMAIL_BACKEND = os.environ.get("DJANGO_EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend")
+DEFAULT_FROM_EMAIL = os.environ.get("DJANGO_FROM_EMAIL", "VenuePulse <noreply@venuepulse.local>")
+SITE_URL = os.environ.get("SITE_URL", "http://localhost:8000")

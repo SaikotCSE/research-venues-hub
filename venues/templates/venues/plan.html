@@ -1,0 +1,24 @@
+{% extends "venues/base.html" %}
+{% block title %}Deadline planner · VenuePulse{% endblock %}
+{% block content %}
+<h1 class="text-2xl font-bold">Deadline planner</h1>
+<p class="mb-4 text-sm text-slate-500">Tell us when your paper will be ready; we list the next deadlines you can still hit, with days of slack.</p>
+<form method="get" class="mb-6 flex flex-wrap items-end gap-3 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
+  <label class="text-sm">Ready on<input type="date" name="ready" required value="{{ raw|default:today|date:'Y-m-d' }}" class="mt-1 block rounded-lg border border-slate-300 bg-transparent p-2 dark:border-slate-700"></label>
+  <label class="text-sm">Domain<select name="domain" class="mt-1 block rounded-lg border border-slate-300 bg-white p-2 text-slate-800 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"><option value="">Any</option>{% for d in domains %}<option {% if d == domain %}selected{% endif %}>{{ d }}</option>{% endfor %}</select></label>
+  <label class="text-sm">Type<select name="type" class="mt-1 block rounded-lg border border-slate-300 bg-white p-2 text-slate-800 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"><option value="">Any</option>{% for v, l in type_choices %}<option value="{{ v }}" {% if v == vtype %}selected{% endif %}>{{ l }}</option>{% endfor %}</select></label>
+  <button class="rounded-lg bg-brand-600 px-5 py-2 text-white">Plan</button>
+</form>
+{% if ready %}
+<div class="overflow-x-auto rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+<table class="w-full min-w-[640px] text-left text-sm"><thead class="bg-slate-50 text-xs uppercase text-slate-500 dark:bg-slate-800/60"><tr><th class="px-3 py-2">Venue</th><th class="px-3 py-2">Rank</th><th class="px-3 py-2">Deadline (UTC)</th><th class="px-3 py-2 text-right">Slack</th><th class="px-3 py-2">Notification</th><th></th></tr></thead>
+<tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+{% for r in rows %}<tr><td class="px-3 py-2"><a class="font-semibold hover:text-brand-600" href="{{ r.venue.get_absolute_url }}">{{ r.venue.acronym }} {{ r.cycle.year }}</a>{% if r.cycle.is_projected %} <span class="rounded bg-amber-100 px-1 text-[10px] text-amber-800">projected</span>{% endif %}</td>
+<td class="px-3 py-2">{{ r.venue.rank_label }}</td><td class="tnum px-3 py-2">{{ r.cycle.submission_deadline|date:"M j, Y H:i" }}</td>
+<td class="tnum px-3 py-2 text-right {% if r.slack_days < 14 %}text-rose-600{% endif %}">{{ r.slack_days }} d</td>
+<td class="px-3 py-2">{{ r.cycle.notification_date|date:"M j, Y"|default:"—" }}</td>
+<td class="px-3 py-2"><a class="underline" href="{{ r.venue.get_absolute_url }}">Details</a></td></tr>
+{% empty %}<tr><td colspan="6" class="p-6 text-center text-slate-500">No deadlines in the next 9 months after that date.</td></tr>{% endfor %}
+</tbody></table></div>
+{% endif %}
+{% endblock %}

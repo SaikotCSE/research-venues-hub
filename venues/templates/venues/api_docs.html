@@ -1,0 +1,29 @@
+{% extends "venues/base.html" %}
+{% block title %}API · VenuePulse{% endblock %}
+{% block content %}
+<h1 class="mb-1 text-2xl font-bold">VenuePulse API</h1>
+<p class="mb-6 text-sm text-slate-500">JSON over HTTPS. Public endpoints need no auth; <code>/api/v1/me/*</code> requires <code>Authorization: Bearer &lt;token&gt;</code> (get yours on your <a class="underline" href="{% url 'accounts:profile' %}">profile</a>).</p>
+<div class="max-w-4xl space-y-3 text-sm">
+  <h2 class="font-semibold">Public</h2>
+  <table class="w-full rounded-xl border border-slate-200 dark:border-slate-800"><tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+    <tr><td class="p-2 font-mono">GET /api/venues/</td><td class="p-2">Paginated list. Filters: q, type, domain, tag, core, ccf, quartile, min_if, country, continent, review, oa, status, sort, dir, page, page_size</td></tr>
+    <tr><td class="p-2 font-mono">GET /api/venues/&lt;slug&gt;/</td><td class="p-2">Venue detail incl. all deadline cycles</td></tr>
+    <tr><td class="p-2 font-mono">GET /api/tags/</td><td class="p-2">Subfield tags with venue counts</td></tr>
+    <tr><td class="p-2 font-mono">GET /api/stats/</td><td class="p-2">Totals</td></tr>
+    <tr><td class="p-2 font-mono">GET /api/insights/</td><td class="p-2">Aggregates that power the Insights page</td></tr>
+    <tr><td class="p-2 font-mono">GET /api/suggest/?q=</td><td class="p-2">Autocomplete used by the command palette</td></tr>
+    <tr><td class="p-2 font-mono">GET /calendar.ics?…filters</td><td class="p-2">iCal feed of all matching upcoming milestones</td></tr>
+    <tr><td class="p-2 font-mono">GET /feed/deadlines.atom?…filters</td><td class="p-2">Atom feed of the next 50 deadlines</td></tr>
+  </tbody></table>
+  <h2 class="pt-3 font-semibold">Authenticated</h2>
+  <table class="w-full rounded-xl border border-slate-200 dark:border-slate-800"><tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+    <tr><td class="p-2 font-mono">GET /api/v1/me/</td><td class="p-2">Your profile</td></tr>
+    <tr><td class="p-2 font-mono">GET /api/v1/me/targets/</td><td class="p-2">Starred venues</td></tr>
+    <tr><td class="p-2 font-mono">POST /api/v1/me/targets/</td><td class="p-2">Body <code>{"slug": "cvpr"}</code> – star a venue</td></tr>
+    <tr><td class="p-2 font-mono">DELETE /api/v1/me/targets/&lt;slug&gt;/</td><td class="p-2">Unstar a venue</td></tr>
+    <tr><td class="p-2 font-mono">GET /api/v1/me/submissions/</td><td class="p-2">Your tracked submissions</td></tr>
+  </tbody></table>
+  <pre class="overflow-auto rounded-lg bg-slate-100 p-3 text-xs dark:bg-slate-800">curl -H "Authorization: Bearer $TOKEN" {{ host }}/api/v1/me/targets/
+curl -X POST -H "Authorization: Bearer $TOKEN" -d '{"slug":"neurips"}' {{ host }}/api/v1/me/targets/</pre>
+</div>
+{% endblock %}

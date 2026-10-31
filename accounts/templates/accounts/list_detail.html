@@ -1,0 +1,18 @@
+{% extends "venues/base.html" %}
+{% block title %}{{ lst.name }} · VenuePulse{% endblock %}
+{% block content %}
+<div class="mb-4 flex flex-wrap items-center gap-3">
+  <div><h1 class="text-2xl font-bold">{{ lst.name }}</h1><p class="text-sm text-slate-500">{{ lst.description }} · by {{ lst.user.profile.name }}</p></div>
+  {% if owner %}
+  <form method="post" action="{% url 'accounts:list_update' lst.slug %}" class="ml-auto flex items-center gap-3 text-sm">{% csrf_token %}
+    <label class="inline-flex items-center gap-1"><input type="checkbox" name="is_public" {% if lst.is_public %}checked{% endif %} onchange="this.form.submit()"> Public</label>
+    <button name="action" value="delete" class="text-rose-600 underline" onclick="return confirm('Delete this list?')">Delete</button>
+  </form>{% endif %}
+</div>
+{% if lst.is_public %}<div x-data="copier" class="mb-4 text-sm">Share: <code>{{ share_url }}</code> <button class="ml-1 underline" @click="copy('{{ share_url }}')" x-text="copied ? 'Copied!' : 'Copy'"></button></div>{% endif %}
+<div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+  {% for venue in venues %}<div>{% include "venues/partials/venue_card.html" %}
+    {% if owner %}<form method="post" action="{% url 'accounts:list_toggle' lst.slug venue.slug %}" class="mt-1 text-right">{% csrf_token %}<button class="text-xs text-slate-400 hover:text-rose-600">Remove from list</button></form>{% endif %}</div>
+  {% empty %}<p class="text-slate-500">This list is empty.</p>{% endfor %}
+</div>
+{% endblock %}

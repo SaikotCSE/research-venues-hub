@@ -1,0 +1,18 @@
+{% extends "venues/base.html" %}
+{% block title %}My lists · VenuePulse{% endblock %}
+{% block content %}
+<h1 class="mb-4 text-2xl font-bold">My venue lists</h1>
+<div class="grid gap-6 lg:grid-cols-[1fr_22rem]">
+  <div class="grid gap-3 sm:grid-cols-2">
+    {% for l in lists %}<a href="{% url 'accounts:list_detail' l.slug %}" class="rounded-xl border border-slate-200 bg-white p-4 hover:shadow dark:border-slate-800 dark:bg-slate-900">
+      <div class="font-semibold">{{ l.name }} {% if l.is_public %}<span class="ml-1 rounded bg-emerald-100 px-1.5 text-xs text-emerald-800">public</span>{% endif %}</div>
+      <div class="text-sm text-slate-500">{{ l.description }}</div><div class="mt-1 text-xs text-slate-500">{{ l.n }} venue{{ l.n|pluralize }}</div></a>
+    {% empty %}<p class="text-slate-500">No lists yet — create one, then use “Add to list” on any venue page.</p>{% endfor %}
+  </div>
+  <form method="post" action="{% url 'accounts:list_create' %}" class="space-y-3 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">{% csrf_token %}
+    <h2 class="font-semibold">New list</h2>
+    {% for f in form %}<div><label class="mb-1 block text-sm">{{ f.label }}</label>{{ f }}</div>{% endfor %}
+    <button class="w-full rounded-lg bg-brand-600 py-2 text-white">Create</button>
+  </form>
+</div>
+{% endblock %}

@@ -74,6 +74,7 @@
     <a href="{% url 'venues:ics' venue.slug %}" class="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-1.5 hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-800"><i data-lucide="calendar-plus" class="h-4 w-4"></i>Add to calendar (.ics)</a>
     {% if venue.official_website %}<a href="{{ venue.official_website }}" target="_blank" rel="noopener" class="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-1.5 hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-800"><i data-lucide="external-link" class="h-4 w-4"></i>Website</a>{% endif %}
     {% if venue.submission_portal_url %}<a href="{{ venue.submission_portal_url }}" target="_blank" rel="noopener" class="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-1.5 hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-800"><i data-lucide="upload" class="h-4 w-4"></i>Submission portal</a>{% endif %}
+    {% if user.is_authenticated %}<a href="{% url 'tracker:create' %}?venue={{ venue.slug }}" class="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-1.5 hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-800"><i data-lucide="kanban" class="h-4 w-4"></i>Track my submission</a>{% endif %}
     <button type="button" @click="$store.compare.toggle('{{ venue.slug }}', '{{ venue.acronym|escapejs }}')" class="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-1.5 hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-800"><i data-lucide="columns-3" class="h-4 w-4"></i>Add to compare</button>
   </div>
   <div class="mt-3 grid gap-3 sm:grid-cols-2">
@@ -86,5 +87,42 @@
             hx-post="{% url 'venues:note' venue.slug %}" hx-trigger="keyup changed delay:600ms" hx-target="next .note-status" hx-swap="innerHTML"
             class="w-full rounded-lg border border-slate-300 bg-transparent p-2 text-sm dark:border-slate-700">{{ note }}</textarea>
   <div class="note-status h-5 text-xs text-slate-500"></div>
+
+  {% if my_lists %}
+  <h3 class="mt-4 mb-1 font-semibold">Add to list</h3>
+  <div class="flex flex-wrap gap-2">{% for l, has in my_lists %}
+    <form method="post" action="{% url 'accounts:list_toggle' l.slug venue.slug %}">{% csrf_token %}<input type="hidden" name="next" value="{{ venue.get_absolute_url }}">
+      <button class="rounded-full border px-3 py-1 text-xs {% if has %}border-brand-600 bg-brand-50 text-brand-700 dark:bg-brand-500/20 dark:text-indigo-200{% else %}border-slate-300 dark:border-slate-700{% endif %}">{% if has %}✓ {% endif %}{{ l.name }}</button></form>{% endfor %}</div>
+  {% endif %}
+
+  {% if changes %}
+  <h3 class="mt-5 mb-1 font-semibold">Recent date changes</h3>
+  <ul class="space-y-0.5 text-sm">{% for c in changes %}<li>{{ c.cycle.year }} · {{ c.field }}: <span class="tnum">{{ c.old_value|date:"M j"|default:"—" }} → {{ c.new_value|date:"M j, Y" }}</span>{% if c.delta_days %} ({{ c.delta_days|stringformat:"+d" }} d){% endif %}</li>{% endfor %}</ul>
+  {% endif %}
+
+  {% if cycles and user.is_authenticated and next_cycle %}<p class="mt-2 text-xs text-slate-500">Spotted an outdated date? <a class="underline" href="{% url 'community:suggest' next_cycle.pk %}">Suggest a correction</a>.</p>{% endif %}
+
+  <h3 id="reviews" class="mt-5 mb-1 font-semibold">Community experience</h3>
+  {% if review_stats.n %}
+  <div class="mb-2 grid grid-cols-2 gap-2 text-center text-xs sm:grid-cols-4">
+    <div class="rounded-lg bg-slate-50 p-2 dark:bg-slate-800/60"><div class="text-slate-500">Rating</div><div class="text-lg font-semibold">{{ review_stats.rating|floatformat:1 }}★</div></div>
+    <div class="rounded-lg bg-slate-50 p-2 dark:bg-slate-800/60"><div class="text-slate-500">Review quality</div><div class="text-lg font-semibold">{{ review_stats.quality|floatformat:1 }}/5</div></div>
+    <div class="rounded-lg bg-slate-50 p-2 dark:bg-slate-800/60"><div class="text-slate-500">Avg. turnaround</div><div class="text-lg font-semibold">{% if review_stats.turnaround %}{{ review_stats.turnaround|floatformat:0 }} d{% else %}—{% endif %}</div></div>
+    <div class="rounded-lg bg-slate-50 p-2 dark:bg-slate-800/60"><div class="text-slate-500">Reported accept</div><div class="text-lg font-semibold">{% if review_stats.accept_pct is not None %}{{ review_stats.accept_pct }}%{% else %}—{% endif %}</div></div>
+  </div>
+  <ul class="space-y-2 text-sm">{% for r in reviews %}<li class="rounded-lg border border-slate-200 p-2 dark:border-slate-700"><b>{{ r.rating }}★</b> · {{ r.get_outcome_display }} · <span class="text-slate-500">{{ r.user.profile.name }}, {{ r.created_at|timesince }} ago</span>{% if r.comment %}<p class="mt-0.5">{{ r.comment }}</p>{% endif %}</li>{% endfor %}</ul>
+  {% else %}<p class="text-sm text-slate-500">No experience reports yet.</p>{% endif %}
+  {% if review_form %}
+  <form method="post" action="{% url 'community:review' venue.slug %}" class="mt-3 grid gap-2 rounded-lg border border-slate-200 p-3 text-sm sm:grid-cols-2 dark:border-slate-700">{% csrf_token %}
+    <div class="sm:col-span-2 font-medium">{% if my_review %}Update your experience{% else %}Share your experience{% endif %}</div>
+    {% for f in review_form %}<div class="{% if f.name == 'comment' %}sm:col-span-2{% endif %}"><label class="mb-0.5 block text-xs text-slate-500">{{ f.label }}</label>{{ f }}</div>{% endfor %}
+    <button class="rounded-lg bg-brand-600 px-4 py-1.5 text-white sm:col-span-2">Save</button>
+  </form>
+  {% elif not user.is_authenticated %}<p class="mt-2 text-sm"><a class="underline" href="{% url 'accounts:login' %}?next={{ venue.get_absolute_url }}">Log in</a> to share your experience.</p>{% endif %}
+
+  {% if related %}
+  <h3 class="mt-5 mb-1 font-semibold">Related venues</h3>
+  <div class="flex flex-wrap gap-2 text-sm">{% for r in related %}<a href="{{ r.get_absolute_url }}" class="rounded-full border border-slate-300 px-3 py-1 hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-800" title="{{ r.name }}">{{ r.acronym }}</a>{% endfor %}</div>
+  {% endif %}
 </div>
 {% endwith %}

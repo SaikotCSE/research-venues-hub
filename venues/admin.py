@@ -45,5 +45,5 @@ class DeadlineCycleAdmin(admin.ModelAdmin):
 
 @admin.register(VenueBookmark)
 class VenueBookmarkAdmin(admin.ModelAdmin):
-    list_display = ("venue", "session_key", "is_starred", "updated_at")
+    list_display = ("venue", "user", "anon_key", "is_starred", "updated_at")
     list_filter = ("is_starred",)

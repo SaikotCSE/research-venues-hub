@@ -12,6 +12,7 @@ from django.views.decorators.http import require_GET, require_POST
 from .filters import facet_options, filter_venues
 from .ics import build_calendar
 from .models import Venue, VenueBookmark
+from .ownership import bookmarks_for, get_or_create_bookmark, starred_ids as _starred_ids
 from .serializers import CSV_COLUMNS, venue_to_csv_row, venue_to_dict
 
 MAX_COMPARE = 4
@@ -20,19 +21,6 @@ PAGE_SIZE = {"grid": 24, "table": 50}
 
 
 # ---------------------------------------------------------------- helpers
-def _session_key(request):
-    if not request.session.session_key:
-        request.session.create()
-    return request.session.session_key
-
-
-def _starred_ids(request):
-    key = request.session.session_key
-    if not key:
-        return set()
-    return set(VenueBookmark.objects.filter(session_key=key, is_starred=True).values_list("venue_id", flat=True))
-
-
 def _base_qs():
     return Venue.objects.prefetch_related("subfields", "cycles")
 
@@ -108,14 +96,40 @@ def venue_modal(request, slug):
     return render(request, "venues/partials/venue_modal.html", _detail_ctx(request, venue))
 
 
+def related_venues(venue, limit=6):
+    """Venues sharing the most subfield tags (ties broken by rank)."""
+    from django.db.models import Count
+
+    tag_ids = list(venue.subfields.values_list("pk", flat=True))
+    if not tag_ids:
+        return []
+    qs = (Venue.objects.filter(subfields__in=tag_ids).exclude(pk=venue.pk)
+          .annotate(shared=Count("subfields", distinct=True)).prefetch_related("cycles")
+          .order_by("-shared", "acronym")[:limit])
+    return list(qs)
+
+
 def _detail_ctx(request, venue):
-    key = request.session.session_key
-    bm = VenueBookmark.objects.filter(session_key=key, venue=venue).first() if key else None
+    from community.forms import ReviewForm
+    from community.models import DeadlineChange, VenueReview
+    from community.views import review_summary
+
+    bm = bookmarks_for(request).filter(venue=venue).first()
     cycles = list(venue.cycles.all())
-    return {
+    ctx = {
         "venue": venue, "cycles": cycles, "next_cycle": venue.next_cycle,
         "bookmark": bm, "starred": bool(bm and bm.is_starred), "note": bm.note if bm else "",
+        "review_stats": review_summary(venue),
+        "reviews": venue.reviews.select_related("user")[:10],
+        "changes": DeadlineChange.objects.filter(cycle__venue=venue).select_related("cycle")[:10],
+        "related": related_venues(venue),
     }
+    if request.user.is_authenticated:
+        mine = VenueReview.objects.filter(user=request.user, venue=venue).first()
+        ctx["review_form"] = ReviewForm(instance=mine)
+        ctx["my_review"] = mine
+        ctx["my_lists"] = [(l, l.venues.filter(pk=venue.pk).exists()) for l in request.user.venue_lists.all()]
+    return ctx
 
 
 @require_GET
@@ -143,20 +157,15 @@ def compare(request):
 # ---------------------------------------------------------------- bookmarks
 @require_GET
 def targets(request):
-    key = request.session.session_key
-    bms = (
-        VenueBookmark.objects.filter(session_key=key, is_starred=True).select_related("venue")
-        .prefetch_related("venue__cycles", "venue__subfields") if key else VenueBookmark.objects.none()
-    )
+    bms = bookmarks_for(request).filter(is_starred=True).select_related("venue").prefetch_related("venue__cycles", "venue__subfields")
     venues = sorted((b.venue for b in bms), key=lambda v: (v.next_deadline is None, v.next_deadline[1] if v.next_deadline else 0))
-    notes = {b.venue_id: b.note for b in bms}
-    return render(request, "venues/targets.html", {"venues": venues, "notes": notes, "starred_ids": {v.id for v in venues}})
+    return render(request, "venues/targets.html", {"venues": venues, "starred_ids": {v.id for v in venues}})
 
 
 @require_POST
 def toggle_bookmark(request, slug):
     venue = get_object_or_404(Venue, slug=slug)
-    bm, _ = VenueBookmark.objects.get_or_create(session_key=_session_key(request), venue=venue, defaults={"is_starred": False})
+    bm = get_or_create_bookmark(request, venue)
     bm.is_starred = not bm.is_starred
     bm.save(update_fields=["is_starred", "updated_at"])
     resp = render(request, "venues/partials/star_button.html", {"venue": venue, "starred": bm.is_starred})
@@ -167,7 +176,7 @@ def toggle_bookmark(request, slug):
 @require_POST
 def save_note(request, slug):
     venue = get_object_or_404(Venue, slug=slug)
-    bm, _ = VenueBookmark.objects.get_or_create(session_key=_session_key(request), venue=venue, defaults={"is_starred": False})
+    bm = get_or_create_bookmark(request, venue)
     bm.note = request.POST.get("note", "")[:5000]
     bm.save(update_fields=["note", "updated_at"])
     return HttpResponse('<span class="text-emerald-600 dark:text-emerald-400">Saved ✓</span>')
@@ -177,9 +186,7 @@ def save_note(request, slug):
 def _export_queryset(request):
     qs = filter_venues(request.GET, base=_base_qs())
     if request.GET.get("scope") == "targets":
-        key = request.session.session_key
-        ids = VenueBookmark.objects.filter(session_key=key, is_starred=True).values("venue_id") if key else []
-        qs = qs.filter(pk__in=ids)
+        qs = qs.filter(pk__in=bookmarks_for(request).filter(is_starred=True).values("venue_id"))
     return qs
 
 

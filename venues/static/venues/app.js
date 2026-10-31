@@ -84,6 +84,18 @@
         else { f.elements['sort'].value = key; dir.value = defaultDir; }
         htmx.trigger(f, 'change');
       },
+      saveSearch() {
+        const name = document.getElementById('ss-name').value.trim();
+        if (!name) { Alpine.store('toast').show('Give the search a name'); return; }
+        const f = document.getElementById('filters');
+        const params = new URLSearchParams(new FormData(f));
+        for (const [k, v] of [...params.entries()]) if (!v || k === 'csrfmiddlewaretoken') params.delete(k);
+        const sf = document.getElementById('save-search-form');
+        sf.elements['name'].value = name;
+        sf.elements['querystring'].value = params.toString();
+        sf.elements['alert'].value = document.getElementById('ss-alert').checked ? 'on' : '';
+        sf.submit();
+      },
       reset() {
         const f = document.getElementById('filters');
         f.reset();
@@ -92,6 +104,33 @@
         f.elements['q'].value = '';
         f.elements['min_if'].value = 0; this.minIf = 0;
         htmx.trigger(f, 'change');
+      },
+    }));
+
+    Alpine.data('palette', () => ({
+      open: false, q: '', results: [], idx: 0,
+      pages: [
+        { acronym: 'Explore venues', name: 'Search & filter', url: '/', flag: '🔎' },
+        { acronym: 'Recommend', name: 'Find venues for my paper', url: '/recommend/', flag: '✨' },
+        { acronym: 'Deadline planner', name: 'When will my paper be ready?', url: '/plan/', flag: '🗓️' },
+        { acronym: 'Insights', name: 'Charts & statistics', url: '/insights/', flag: '📊' },
+        { acronym: 'Tracker', name: 'My submissions board', url: '/tracker/', flag: '📌' },
+        { acronym: 'My targets', name: 'Starred venues', url: '/targets/', flag: '⭐' },
+      ],
+      show() { this.open = true; this.q = ''; this.results = this.pages; this.idx = 0; this.$nextTick(() => this.$refs.input.focus()); },
+      onKey(e) {
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); this.open ? (this.open = false) : this.show(); }
+        else if (e.key === 'Escape') this.open = false;
+      },
+      move(d) { this.idx = Math.max(0, Math.min(this.results.length - 1, this.idx + d)); },
+      go() { const r = this.results[this.idx]; if (r) window.location.href = r.url; },
+      async search() {
+        const q = this.q.trim();
+        if (!q) { this.results = this.pages; return; }
+        try {
+          const res = await fetch('/api/suggest/?q=' + encodeURIComponent(q));
+          this.results = (await res.json()).results; this.idx = 0;
+        } catch (e) { this.results = []; }
       },
     }));
 
