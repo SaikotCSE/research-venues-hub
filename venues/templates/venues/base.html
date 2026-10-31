@@ -57,9 +57,9 @@
         {% endfor %}
       </nav>
       <div class="ml-auto flex items-center gap-1.5">
-        <button type="button" @click="$dispatch('open-palette')" class="btn-secondary hidden text-slate-600 md:inline-flex dark:text-slate-300" aria-label="Search venues and pages (Ctrl+K)">
+        <button type="button" @click="$dispatch('open-palette')" class="btn-secondary hidden text-slate-600 md:inline-flex dark:text-slate-300" aria-keyshortcuts="Control+K" title="Search venues, pages and actions">
           {% icon "search" "h-4 w-4" %}<span>Search</span><kbd class="kbd">Ctrl K</kbd></button>
-        <button type="button" @click="$store.compare.show()" class="btn-secondary relative" aria-label="Open comparison drawer">
+        <button type="button" @click="$store.compare.show()" class="btn-secondary relative" aria-label="Compare venues" title="Open the comparison drawer">
           {% icon "columns-3" "h-4 w-4" %}<span class="hidden sm:inline">Compare</span>
           <span x-show="$store.compare.items.length" x-cloak class="rounded-full bg-brand-600 px-1.5 text-xs text-white" x-text="$store.compare.items.length"></span>
         </button>
@@ -78,8 +78,9 @@
               </template>
             </div>
             <label for="tz-select" class="mb-1.5 mt-3 block text-xs font-semibold uppercase tracking-wide text-slate-500">Show times in</label>
-            <select id="tz-select" class="input py-1.5" x-model="$store.tz.zone" @change="$store.tz.set($event.target.value)">
-              <template x-for="z in $store.tz.options()" :key="z"><option :value="z" x-text="z" :selected="z === $store.tz.zone"></option></template>
+            <select id="tz-select" class="input py-1.5" @change="$store.tz.set($event.target.value)">
+              <option :value="$store.tz.zone" x-text="$store.tz.zone" selected></option>
+              <template x-for="z in (o ? $store.tz.options().filter((z) => z !== $store.tz.zone) : [])" :key="z"><option :value="z" x-text="z"></option></template>
             </select>
             <p class="help">Countdowns always show AoE (UTC−12) too.{% if user.is_authenticated %} Saved to your profile.{% endif %}</p>
           </div>

@@ -61,7 +61,7 @@ test("compare drawer highlights the best values", async ({ page }) => {
   await page.locator("article").first().getByLabel("Compare").check();
   await page.goto("/?q=eccv");
   await page.locator("article").first().getByLabel("Compare").check();
-  await page.getByRole("button", { name: "Open comparison drawer" }).click();
+  await page.getByRole("button", { name: "Compare venues" }).click();
   const drawer = page.getByRole("dialog", { name: /Compare venues/ });
   await expect(drawer.locator("table")).toBeVisible();
   await expect(drawer.getByText("(best)").first()).toBeAttached();

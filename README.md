@@ -64,8 +64,10 @@ metrics, formatting rules, a submission tracker, reminders, calendar feeds and a
 - Secure-by-default production settings (HSTS, secure cookies, nonce-based CSP, Permissions-Policy, rate limiting),
   `/healthz`, structured logs with request IDs, sitemap, robots.txt, web manifest, custom error pages.
 - Dockerfile (non-root, healthcheck), docker-compose (PostgreSQL + Redis + scheduler), gunicorn, Procfile.
-- CI: ruff, 200 Django tests on Python 3.12/3.13 × SQLite/PostgreSQL (≈95 % coverage), deploy checks, asset
+- CI: ruff, 210+ Django tests on Python 3.12/3.13 × SQLite/PostgreSQL (≈95 % coverage), deploy checks, asset
   freshness, Docker smoke test, Playwright end-to-end + axe accessibility tests.
+- Quality bar: zero axe-core WCAG 2.1 AA violations in light and dark mode, and Lighthouse (desktop, production
+  settings) scores of 100 for performance, accessibility, best practices and SEO on the main pages.
 
 ## Quick start
 

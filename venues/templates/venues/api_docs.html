@@ -83,6 +83,7 @@ results.forEach(v =&gt; console.log(v.acronym, v.next_deadline?.at));</pre>
       <h3 class="mt-5 text-sm font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-400">{{ group }}</h3>
       <div class="card mt-2 overflow-x-auto">
         <table class="w-full min-w-[560px] text-left text-sm">
+          <thead class="sr-only"><tr><th scope="col">Method</th><th scope="col">Path</th><th scope="col">Description</th></tr></thead>
           <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
             {% for method, path, desc in rows %}
             <tr><td class="w-24 px-4 py-2.5"><span class="badge {% if method == 'GET' %}bg-sky-100 text-sky-800 dark:bg-sky-400/15 dark:text-sky-200{% elif method == 'POST' %}bg-emerald-100 text-emerald-800 dark:bg-emerald-400/15 dark:text-emerald-200{% else %}bg-rose-100 text-rose-800 dark:bg-rose-400/15 dark:text-rose-200{% endif %}">{{ method }}</span></td>
@@ -98,7 +99,9 @@ results.forEach(v =&gt; console.log(v.acronym, v.next_deadline?.at));</pre>
       <h2 id="filters-h" class="text-xl font-semibold">Filter parameters</h2>
       <p class="muted mt-1 text-sm">Accepted by <code>/api/venues/</code>, the CSV/JSON exports and the calendar/Atom feeds. Repeat a parameter to OR values, e.g. <code>?core=A*&amp;core=A</code>.</p>
       <div class="card mt-3 overflow-x-auto">
-        <table class="w-full text-left text-sm"><tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+        <table class="w-full text-left text-sm">
+          <thead class="sr-only"><tr><th scope="col">Parameter</th><th scope="col">Type</th><th scope="col">Description</th></tr></thead>
+          <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
           {% for name, typ, desc in filter_params %}<tr><td class="px-4 py-2 font-mono text-xs">{{ name }}</td><td class="muted px-4 py-2 text-xs">{{ typ }}</td><td class="px-4 py-2">{{ desc }}</td></tr>{% endfor %}
         </tbody></table>
       </div>
