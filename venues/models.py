@@ -1,6 +1,8 @@
+import time
 from datetime import timedelta
 
 from django.conf import settings
+from django.core.cache import cache
 from django.db import models
 from django.db.models import Q
 from django.urls import reverse
@@ -8,6 +10,20 @@ from django.utils import timezone
 from django.utils.text import slugify
 
 AOE_OFFSET = timedelta(hours=-12)
+CATALOG_VERSION_KEY = "catalog:version"
+
+
+def catalog_version() -> int:
+    """Opaque version of the venue catalogue; cache keys embed it so edits invalidate them."""
+    version = cache.get(CATALOG_VERSION_KEY)
+    if version is None:
+        cache.add(CATALOG_VERSION_KEY, time.time_ns(), None)
+        version = cache.get(CATALOG_VERSION_KEY, 0)
+    return version
+
+
+def bump_catalog_version() -> None:
+    cache.set(CATALOG_VERSION_KEY, time.time_ns(), None)
 
 
 class HttpsURLField(models.URLField):

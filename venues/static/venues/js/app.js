@@ -200,6 +200,14 @@
         this.form().elements.view.value = view;
         this.submit();
       },
+      closingWithin(days) {
+        const f = this.form();
+        for (const el of f.elements) if (el.name === 'status') el.checked = el.value === '';
+        f.elements.within.value = days;
+        this.submit();
+        const top = document.getElementById('results-top');
+        if (top) top.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      },
       removeFilter(name, value) {
         for (const el of this.form().elements) {
           if (el.name !== name) continue;
@@ -353,5 +361,25 @@
     showToast(msg, 'error');
   });
   document.addEventListener('htmx:sendError', () => showToast('You appear to be offline. Check your connection.', 'error'));
+
+  // Keep shareable URLs clean: drop empty filters and defaults from the explore form's GET requests.
+  const DEFAULTS = { view: 'grid', sort: 'deadline', min_if: '0' };
+  document.addEventListener('htmx:configRequest', (e) => {
+    if (!e.detail.elt || e.detail.elt.id !== 'filters') return;
+    const fd = e.detail.formData;
+    const params = e.detail.parameters;
+    const keys = fd ? [...new Set([...fd.keys()])] : Object.keys(params);
+    for (const k of keys) {
+      const values = fd ? fd.getAll(k) : [].concat(params[k]);
+      const meaningful = values.filter((v) => v !== '' && v !== DEFAULTS[k]);
+      if (!meaningful.length) {
+        if (fd) fd.delete(k);
+        if (params && k in params) delete params[k];
+      }
+    }
+  });
+  // Screen-reader friendly busy state on swap targets.
+  document.addEventListener('htmx:beforeRequest', (e) => { if (e.detail.target) e.detail.target.setAttribute('aria-busy', 'true'); });
+  document.addEventListener('htmx:afterRequest', (e) => { if (e.detail.target) e.detail.target.setAttribute('aria-busy', 'false'); });
   document.addEventListener('htmx:timeout', () => showToast('The server took too long to respond.', 'error'));
 })();

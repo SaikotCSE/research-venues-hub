@@ -1,17 +1,18 @@
-{# Live countdown. Usage: {% include "venues/partials/countdown.html" with at=dt kind="Paper" %} #}
-<div x-data="countdown('{{ at.isoformat }}')" class="rounded-lg border border-slate-200 bg-slate-50 p-2.5 dark:border-slate-700 dark:bg-slate-800/60">
-  <div class="mb-1 flex items-center justify-between text-xs font-medium text-slate-500 dark:text-slate-400">
-    <span>{{ kind }} deadline</span>
-    <span x-show="done" x-cloak class="text-rose-600 dark:text-rose-400">Closed</span>
+{# Live countdown. Usage: {% include "venues/partials/countdown.html" with at=dt kind="Paper" projected=bool %} #}
+<div x-data="countdown('{{ at.isoformat }}')" class="rounded-lg border p-2.5" :class="urgent ? 'border-rose-200 bg-rose-50/70 dark:border-rose-500/30 dark:bg-rose-500/10' : 'border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800/60'">
+  <div class="mb-1 flex items-center justify-between gap-2 text-xs font-medium text-slate-600 dark:text-slate-400">
+    <span class="inline-flex items-center gap-1">{% icon "clock" "h-3.5 w-3.5" %}{{ kind }} deadline{% if projected %} <span class="badge bg-amber-100 font-medium text-amber-900 dark:bg-amber-400/15 dark:text-amber-200" title="Estimated from previous editions — verify on the official site">Projected</span>{% endif %}</span>
+    <span x-show="done" x-cloak class="font-semibold text-rose-700 dark:text-rose-300">Closed</span>
+    <span x-show="!done" class="tnum" x-text="relative"></span>
   </div>
-  <div class="tnum grid grid-cols-4 gap-1 text-center" :class="urgent ? 'text-rose-600 dark:text-rose-400' : 'text-slate-900 dark:text-slate-100'">
-    <div><div class="text-lg font-bold leading-none" x-text="d">–</div><div class="text-[10px] uppercase text-slate-500">days</div></div>
-    <div><div class="text-lg font-bold leading-none" x-text="h">–</div><div class="text-[10px] uppercase text-slate-500">hrs</div></div>
-    <div><div class="text-lg font-bold leading-none" x-text="m">–</div><div class="text-[10px] uppercase text-slate-500">min</div></div>
-    <div><div class="text-lg font-bold leading-none" x-text="s">–</div><div class="text-[10px] uppercase text-slate-500">sec</div></div>
+  <div class="tnum grid grid-cols-4 gap-1 text-center" :class="urgent ? 'text-rose-700 dark:text-rose-300' : 'text-slate-900 dark:text-slate-100'" role="timer" aria-live="off">
+    <div><div class="text-xl font-bold leading-none" x-text="d">–</div><div class="text-[10px] uppercase tracking-wide text-slate-500">days</div></div>
+    <div><div class="text-xl font-bold leading-none" x-text="h">–</div><div class="text-[10px] uppercase tracking-wide text-slate-500">hrs</div></div>
+    <div><div class="text-xl font-bold leading-none" x-text="m">–</div><div class="text-[10px] uppercase tracking-wide text-slate-500">min</div></div>
+    <div><div class="text-xl font-bold leading-none" x-text="s">–</div><div class="text-[10px] uppercase tracking-wide text-slate-500">sec</div></div>
   </div>
-  <div class="mt-1.5 space-y-0.5 text-[11px] text-slate-500 dark:text-slate-400">
-    <div>Local: <span x-text="local">{{ at|date:"M j, Y H:i" }} UTC</span></div>
-    <div>AoE (UTC−12): <span x-text="aoe"></span></div>
+  <div class="mt-2 space-y-0.5 text-[11px] text-slate-600 dark:text-slate-400">
+    <div class="truncate"><span class="font-medium">You:</span> <span x-text="local">{{ at|date:"M j, Y H:i" }} UTC</span></div>
+    <div class="truncate"><span class="font-medium">AoE:</span> <span x-text="aoe"></span></div>
   </div>
 </div>

@@ -152,7 +152,7 @@ class ViewTests(TestCase):
     def test_htmx_returns_partial(self):
         r = self.client.get(reverse("venues:list"), **HX)
         self.assertNotContains(r, "<html")
-        self.assertContains(r, "venues match")
+        self.assertContains(r, "showing 1–24")
 
     def test_view_modes(self):
         for mode, marker in (("grid", "<article"), ("table", "<table"), ("calendar", "No milestones")):
@@ -216,7 +216,8 @@ class ViewTests(TestCase):
 
     def test_pagination(self):
         r = self.client.get(reverse("venues:list"), {"page": 2}, **HX)
-        self.assertContains(r, "Page 2 of")
+        self.assertContains(r, "Page <strong")
+        self.assertEqual(r.context["page_obj"].number, 2)
 
     # ---- detail / modal / ics
     def test_detail_page(self):
@@ -274,7 +275,9 @@ class ViewTests(TestCase):
         self.assertEqual(self.client.get(url).status_code, 405)
         r = self.client.post(url)
         self.assertContains(r, 'aria-pressed="true"')
-        self.assertEqual(r["HX-Trigger"], "targets-changed")
+        trigger = json.loads(r["HX-Trigger"])
+        self.assertTrue(trigger["targets-changed"])
+        self.assertIn("Saved CVPR", trigger["toast"]["message"])
         self.assertContains(self.client.get(reverse("venues:targets")), "CVPR")
         self.assertContains(self.client.post(url), 'aria-pressed="false"')
         self.assertNotContains(self.client.get(reverse("venues:targets")), "article")

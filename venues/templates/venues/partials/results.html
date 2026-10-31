@@ -1,87 +1,47 @@
-{% load venue_extras %}
-<div class="mb-3 flex items-center justify-between text-sm text-slate-500 dark:text-slate-400" role="status">
-  <span><strong class="text-slate-900 dark:text-slate-100">{{ total }}</strong> venue{{ total|pluralize }} match</span>
-  <span class="flex gap-3">
-    <a class="underline" href="{% url 'venues:export_csv' %}?{{ params.urlencode }}">Export CSV</a>
-    <a class="underline" href="{% url 'venues:export_json' %}?{{ params.urlencode }}">Export JSON</a>
-  </span>
+<div class="mb-4 flex flex-wrap items-center gap-2">
+  <p class="text-sm" role="status">
+    <strong class="tnum text-slate-900 dark:text-white">{{ total }}</strong> venue{{ total|pluralize }}
+    {% if page_obj and page_obj.paginator.count %}<span class="muted">· showing {{ page_obj.start_index }}–{{ page_obj.end_index }}{% if view_mode == "timeline" %} with dated cycles{% endif %}</span>{% endif %}
+  </p>
+  {% for c in chips %}
+  <button type="button" class="chip group hover:border-rose-300 hover:bg-rose-50 hover:text-rose-700 dark:hover:border-rose-500/40 dark:hover:bg-rose-500/10 dark:hover:text-rose-300"
+          @click="removeFilter('{{ c.name|escapejs }}', '{{ c.value|escapejs }}')" aria-label="Remove filter: {{ c.label }}">
+    {{ c.label }}{% icon "x" "h-3 w-3 opacity-60 group-hover:opacity-100" %}</button>
+  {% endfor %}
+  {% if chips %}<button type="button" class="link text-xs" @click="reset()">Clear all</button>{% endif %}
+  <div class="relative ml-auto" x-data="{ o: false }" @click.outside="o = false" @keydown.escape.stop="o = false">
+    <button type="button" class="btn-secondary py-1" @click="o = !o" :aria-expanded="o.toString()" aria-haspopup="true">{% icon "download" "h-4 w-4" %}Export{% icon "chevron-down" "h-3.5 w-3.5" %}</button>
+    <div x-show="o" x-cloak x-transition.origin.top.right class="absolute right-0 z-20 mt-1 w-60 rounded-xl border border-slate-200 bg-white p-1 text-sm shadow-xl dark:border-slate-700 dark:bg-slate-900">
+      <p class="muted px-3 py-1.5 text-xs">Exports honour the current filters.</p>
+      <a class="flex items-center gap-2 rounded-md px-3 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-800" href="{% url 'venues:export_csv' %}?{{ querystring }}">{% icon "file-text" "h-4 w-4 text-slate-500" %}CSV spreadsheet</a>
+      <a class="flex items-center gap-2 rounded-md px-3 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-800" href="{% url 'venues:export_json' %}?{{ querystring }}">{% icon "code" "h-4 w-4 text-slate-500" %}JSON (with all cycles)</a>
+      <a class="flex items-center gap-2 rounded-md px-3 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-800" href="{% url 'venues:calendar_filtered' %}?{{ querystring }}">{% icon "calendar-plus" "h-4 w-4 text-slate-500" %}Calendar (.ics)</a>
+      <a class="flex items-center gap-2 rounded-md px-3 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-800" href="{% url 'venues:atom_feed' %}?{{ querystring }}">{% icon "rss" "h-4 w-4 text-slate-500" %}Atom feed</a>
+    </div>
+  </div>
 </div>
 
 {% if not total %}
-  <div class="rounded-xl border border-dashed border-slate-300 p-10 text-center text-slate-500 dark:border-slate-700">
-    {% icon "search-x" "mx-auto mb-2 h-8 w-8" %}No venues match these filters.
-    <div class="mt-2"><button type="button" class="text-brand-600 underline dark:text-brand-500" @click="reset()">Reset filters</button></div>
+  <div class="card flex flex-col items-center px-6 py-14 text-center">
+    <span class="grid h-12 w-12 place-items-center rounded-full bg-slate-100 dark:bg-slate-800">{% icon "search-x" "h-6 w-6 text-slate-500" %}</span>
+    <h3 class="mt-4 font-semibold">No venues match these filters</h3>
+    <p class="muted mt-1 max-w-sm text-sm">Try removing a filter, widening the deadline window, or searching for a broader topic.</p>
+    <div class="mt-5 flex flex-wrap justify-center gap-2">
+      <button type="button" class="btn-primary" @click="reset()">Reset filters</button>
+      <a class="btn-secondary" href="{% url 'venues:recommend' %}">{% icon "sparkles" "h-4 w-4" %}Try the recommender</a>
+    </div>
   </div>
 {% elif view_mode == "grid" %}
-  <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+  <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
     {% for venue in page_obj %}{% include "venues/partials/venue_card.html" %}{% endfor %}
   </div>
   {% include "venues/partials/pagination.html" %}
 {% elif view_mode == "table" %}
-  <div class="overflow-x-auto rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
-    <table class="w-full min-w-[820px] text-left text-sm">
-      <thead class="bg-slate-50 text-xs uppercase text-slate-500 dark:bg-slate-800/60 dark:text-slate-400">
-        <tr>
-          <th class="px-3 py-2"><button type="button" @click="setSort('name','asc')">Venue {% if sort == 'name' %}↕{% endif %}</button></th>
-          <th class="px-3 py-2">Type</th>
-          <th class="px-3 py-2"><button type="button" @click="setSort('rank','desc')">Rank {% if sort == 'rank' %}↕{% endif %}</button></th>
-          <th class="px-3 py-2 text-right"><button type="button" @click="setSort('impact_factor','desc')">IF {% if sort == 'impact_factor' %}↕{% endif %}</button></th>
-          <th class="px-3 py-2 text-right"><button type="button" @click="setSort('h5_index','desc')">h5 {% if sort == 'h5_index' %}↕{% endif %}</button></th>
-          <th class="px-3 py-2 text-right"><button type="button" @click="setSort('acceptance_rate','asc')">Accept. {% if sort == 'acceptance_rate' %}↕{% endif %}</button></th>
-          <th class="px-3 py-2"><button type="button" @click="setSort('deadline','asc')">Next deadline {% if sort == 'deadline' %}↕{% endif %}</button></th>
-          <th class="px-3 py-2">Status</th>
-          <th class="px-3 py-2"><span class="sr-only">Actions</span></th>
-        </tr>
-      </thead>
-      <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
-        {% for venue in page_obj %}
-        {% with nd=venue.next_deadline status=venue.deadline_status %}
-        <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40">
-          <td class="px-3 py-2"><a class="font-semibold hover:text-brand-600" href="{{ venue.get_absolute_url }}">{{ venue.acronym }}</a>
-            <div class="max-w-xs truncate text-xs text-slate-500">{{ venue.country_flag_emoji }} {{ venue.name }}</div></td>
-          <td class="px-3 py-2 text-xs">{{ venue.venue_type }}</td>
-          <td class="px-3 py-2"><span class="rounded px-1.5 py-0.5 text-[11px] font-semibold {{ venue|rank_class }}">{{ venue.rank_label }}</span></td>
-          <td class="tnum px-3 py-2 text-right">{{ venue.impact_factor|default:"—" }}</td>
-          <td class="tnum px-3 py-2 text-right">{{ venue.h5_index|default:"—" }}</td>
-          <td class="tnum px-3 py-2 text-right">{% if venue.acceptance_rate %}{{ venue.acceptance_rate|floatformat:1 }}%{% else %}—{% endif %}</td>
-          <td class="px-3 py-2">
-            {% if nd %}
-            <div x-data="countdown('{{ nd.1.isoformat }}')" class="tnum">
-              <div class="text-xs">{{ nd.0 }} · <span x-text="aoe"></span></div>
-              <div class="font-semibold" :class="urgent ? 'text-rose-600 dark:text-rose-400' : ''" x-text="`${d}d ${h}:${m}:${s}`"></div>
-            </div>
-            {% elif venue.is_rolling_submission %}<span class="text-violet-600 dark:text-violet-300">Rolling</span>{% else %}<span class="text-slate-400">—</span>{% endif %}
-          </td>
-          <td class="px-3 py-2"><span class="rounded px-1.5 py-0.5 text-[11px] font-medium {{ status|status_class }}">{{ status|capfirst }}</span></td>
-          <td class="px-3 py-2 whitespace-nowrap">
-            {% if venue.id in starred_ids %}{% include "venues/partials/star_button.html" with starred=True %}{% else %}{% include "venues/partials/star_button.html" with starred=False %}{% endif %}
-            <input type="checkbox" aria-label="Compare {{ venue.acronym }}" :checked="$store.compare.has('{{ venue.slug }}')" @change="$store.compare.toggle('{{ venue.slug }}', '{{ venue.acronym|escapejs }}'); $el.checked = $store.compare.has('{{ venue.slug }}')">
-          </td>
-        </tr>
-        {% endwith %}
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
+  {% include "venues/partials/results_table.html" %}
+  {% include "venues/partials/pagination.html" %}
+{% elif view_mode == "timeline" %}
+  {% include "venues/partials/results_timeline.html" %}
   {% include "venues/partials/pagination.html" %}
 {% else %}
-  <p class="mb-3 text-sm text-slate-500">Upcoming abstract, paper, notification and camera-ready dates for the next 12 months (dates in UTC).</p>
-  <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-    {% for m in months %}
-    <section class="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900">
-      <h3 class="mb-2 flex items-center justify-between font-semibold">{{ m.month|date:"F Y" }}<span class="text-xs font-normal text-slate-500">{{ m.events|length }}</span></h3>
-      {% if m.events %}
-      <ul class="max-h-72 space-y-1 overflow-auto pr-1 text-sm">
-        {% for e in m.events %}
-        <li class="flex items-center gap-2">
-          <span class="tnum w-10 shrink-0 text-xs text-slate-500">{{ e.at|date:"M j" }}</span>
-          <a href="{{ e.venue.get_absolute_url }}" class="truncate font-medium hover:text-brand-600">{{ e.venue.acronym }}</a>
-          <span class="ml-auto shrink-0 rounded px-1.5 text-[10px] {% if e.kind == 'submission' %}bg-rose-100 text-rose-700 dark:bg-rose-400/15 dark:text-rose-300{% elif e.kind == 'abstract' %}bg-amber-100 text-amber-800 dark:bg-amber-400/15 dark:text-amber-300{% else %}bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300{% endif %}">{{ e.label }}</span>
-        </li>
-        {% endfor %}
-      </ul>
-      {% else %}<p class="text-sm text-slate-400">No milestones</p>{% endif %}
-    </section>
-    {% endfor %}
-  </div>
+  {% include "venues/partials/results_calendar.html" %}
 {% endif %}

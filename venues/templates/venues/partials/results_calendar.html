@@ -1,0 +1,20 @@
+<p class="muted mb-3 text-sm">Abstract, paper, notification and camera-ready dates for the next 12 months (UTC). Hover a date for the exact time.</p>
+<div class="grid gap-4 sm:grid-cols-2 2xl:grid-cols-3">
+  {% for m in months %}
+  <section class="card p-4" aria-labelledby="month-{{ forloop.counter }}">
+    <h3 id="month-{{ forloop.counter }}" class="mb-2 flex items-center justify-between font-semibold">{{ m.month|date:"F Y" }}
+      <span class="muted rounded-full bg-slate-100 px-2 text-xs font-medium dark:bg-slate-800">{{ m.events|length }}</span></h3>
+    {% if m.events %}
+    <ul class="max-h-72 space-y-1 overflow-auto pr-1 text-sm">
+      {% for e in m.events %}
+      <li class="flex items-center gap-2">
+        <time class="tnum muted w-12 shrink-0 text-xs" datetime="{{ e.at.isoformat }}" title="{{ e.at|date:'M j, Y H:i' }} UTC">{{ e.at|date:"M j" }}</time>
+        <a href="{{ e.venue.get_absolute_url }}" class="truncate font-medium hover:text-brand-700 dark:hover:text-brand-300">{{ e.venue.acronym }}</a>
+        <span class="badge ml-auto shrink-0 font-medium {% if e.kind == 'submission' %}bg-rose-100 text-rose-800 dark:bg-rose-400/15 dark:text-rose-200{% elif e.kind == 'abstract' %}bg-amber-100 text-amber-900 dark:bg-amber-400/15 dark:text-amber-200{% else %}bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300{% endif %}">{{ e.label }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}<p class="muted text-sm">No milestones</p>{% endif %}
+  </section>
+  {% endfor %}
+</div>

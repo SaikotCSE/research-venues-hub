@@ -179,3 +179,91 @@ class DetailPageExtrasTests(TestCase):
 
     def test_anonymous_sees_login_prompt_for_reviews(self):
         self.assertContains(self.client.get(reverse("venues:detail", args=["cvpr"])), "to share your experience")
+
+
+class ExploreUXTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        call_command("seed_venues", verbosity=0)
+
+    def get(self, **params):
+        return self.client.get(reverse("venues:list"), params, HTTP_HX_REQUEST="true")
+
+    def test_within_filter(self):
+        from .filters import filter_venues
+
+        now = timezone.now()
+        for v in filter_venues(_QD({"within": "30"})):
+            self.assertTrue(v.cycles.filter(submission_deadline__gte=now, submission_deadline__lte=now + timedelta(days=30)).exists(), v)
+        self.assertEqual(filter_venues(_QD({"within": "bogus"})).count(), filter_venues(_QD({})).count())
+        self.assertLessEqual(filter_venues(_QD({"within": "7"})).count(), filter_venues(_QD({"within": "90"})).count())
+
+    def test_active_filter_chips(self):
+        r = self.get(q="vision", core="A*", status="open", within="30", min_if="5", oa="1", tag="computer-vision")
+        labels = [c["label"] for c in r.context["chips"]]
+        for expected in ("“vision”", "CORE A*", "Open now", "Closing within 30 days", "IF ≥ 5", "Open access", "#Computer Vision"):
+            self.assertIn(expected, labels)
+        self.assertContains(r, "Remove filter: CORE A*")
+        self.assertContains(r, "Clear all")
+
+    def test_no_chips_without_filters(self):
+        r = self.get()
+        self.assertEqual(r.context["chips"], [])
+        self.assertNotContains(r, "Clear all")
+
+    def test_timeline_view(self):
+        r = self.get(view="timeline", type="Conference")
+        rows = list(r.context["page_obj"])
+        self.assertTrue(rows)
+        self.assertEqual(len(r.context["timeline"]["ticks"]), 12)
+        for row in rows:
+            for seg in row["segments"]:
+                self.assertTrue(0 <= seg["left"] <= 100 and seg["width"] > 0, seg)
+        keys = [row["sort_key"] for row in rows]
+        self.assertEqual(keys, sorted(keys))
+        self.assertContains(r, "Paper deadline")
+
+    def test_timeline_hides_rolling_journals(self):
+        r = self.get(view="timeline", type="Journal")
+        self.assertGreater(r.context["rolling_hidden"], 0)
+        self.assertContains(r, "rolling-submission journal")
+
+    def test_table_has_sort_semantics(self):
+        r = self.get(view="table", sort="impact_factor", dir="desc")
+        self.assertContains(r, 'aria-sort="descending"')
+        self.assertContains(r, "<caption")
+
+    def test_full_page_has_hero_and_closing_soon(self):
+        r = self.client.get(reverse("venues:list"))
+        self.assertContains(r, "Closing soon")
+        self.assertEqual(r.context["stats"]["venues"], 113)
+        deadlines = [c.submission_deadline for c in r.context["closing_soon"]]
+        self.assertEqual(deadlines, sorted(deadlines))
+        self.assertTrue(all(d >= timezone.now() - timedelta(minutes=1) for d in deadlines))
+
+    def test_tracker_counts_on_cards(self):
+        from .models import Venue, VenueBookmark
+
+        bob = User.objects.create_user("bob", "b@example.com", "pw-12345-xyz")
+        VenueBookmark.objects.create(user=bob, venue=Venue.objects.get(slug="cvpr"))
+        r = self.get(q="cvpr")
+        self.assertContains(r, "1 tracking")
+
+    def test_facets_are_cached_and_invalidated(self):
+        from .filters import facet_options
+        from .models import Venue
+
+        before = facet_options()["countries"]
+        Venue.objects.create(name="Atlantis Conf", acronym="ATL", slug="atl", venue_type="Conference", primary_domain="X", country="Atlantis", continent="Ocean")
+        self.assertIn("Atlantis", facet_options()["countries"])
+        self.assertNotIn("Atlantis", before)
+
+    def test_bookmark_toggle_sends_toast(self):
+        r = self.client.post(reverse("venues:bookmark", args=["icml"]))
+        self.assertEqual(json.loads(r["HX-Trigger"])["toast"]["message"], "Saved ICML to My Targets")
+
+
+class _QD(dict):
+    def getlist(self, key):
+        v = self.get(key)
+        return [] if v is None else (list(v) if isinstance(v, (list, tuple)) else [v])

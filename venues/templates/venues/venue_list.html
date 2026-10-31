@@ -1,107 +1,176 @@
 {% extends "venues/base.html" %}
-{% load venue_extras %}
+{% block title %}VenuePulse · Conference &amp; journal deadlines with live countdowns{% endblock %}
 {% block content %}
 <div x-data="listPage({{ params.min_if|default:0 }})">
   <form id="save-search-form" method="post" action="{% url 'accounts:search_save' %}" class="hidden">{% csrf_token %}<input name="name"><input name="querystring"><input name="alert"></form>
-  <section class="mb-6 rounded-2xl bg-gradient-to-r from-brand-600 to-violet-600 p-6 text-white shadow">
-    <h1 class="text-2xl font-bold sm:text-3xl">Never miss a submission deadline.</h1>
-    <p class="mt-1 max-w-2xl text-sm text-indigo-100">Live countdowns, ranks and formatting rules for {{ stats.venues }} conferences, journals and symposia worldwide — in your timezone and AoE.</p>
+
+  <!-- Hero -->
+  <section class="relative mb-6 overflow-hidden rounded-3xl bg-gradient-to-br from-brand-700 via-brand-600 to-violet-600 px-6 py-8 text-white shadow-lg sm:px-10">
+    <div class="pointer-events-none absolute -right-16 -top-24 h-72 w-72 rounded-full bg-white/10 blur-2xl" aria-hidden="true"></div>
+    <div class="pointer-events-none absolute -bottom-24 left-1/3 h-64 w-64 rounded-full bg-fuchsia-400/20 blur-3xl" aria-hidden="true"></div>
+    <div class="relative grid gap-8 lg:grid-cols-[1.35fr_1fr]">
+      <div>
+        <p class="text-xs font-semibold uppercase tracking-widest text-brand-100">Conferences · Journals · Symposia</p>
+        <h1 class="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">Never miss a submission deadline.</h1>
+        <p class="mt-3 max-w-xl text-brand-50">Live countdowns, ranks and formatting rules for {{ stats.venues }} venues worldwide — shown in your timezone <em>and</em> Anywhere on Earth.</p>
+        <div class="mt-5 flex flex-wrap gap-2">
+          <a href="{% url 'venues:recommend' %}" class="btn bg-white text-brand-700 shadow-sm hover:bg-brand-50">{% icon "sparkles" "h-4 w-4" %}Find venues for my paper</a>
+          <a href="{% url 'venues:plan' %}" class="btn border border-white/40 text-white hover:bg-white/10">{% icon "calendar-days" "h-4 w-4" %}Plan around my ready date</a>
+        </div>
+        <dl class="mt-7 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div class="rounded-xl bg-white/10 px-3 py-2.5 backdrop-blur"><dt class="text-xs text-brand-100">Venues</dt><dd class="tnum text-2xl font-bold">{{ stats.venues }}</dd></div>
+          <div class="rounded-xl bg-white/10 px-3 py-2.5 backdrop-blur"><dt class="text-xs text-brand-100">Calls open now</dt><dd class="tnum text-2xl font-bold">{{ stats.open }}</dd></div>
+          <div class="rounded-xl bg-white/10 px-3 py-2.5 backdrop-blur"><dt class="text-xs text-brand-100">Closing ≤ 30 days</dt><dd class="tnum text-2xl font-bold">{{ stats.closing_30 }}</dd></div>
+          <div class="rounded-xl bg-white/10 px-3 py-2.5 backdrop-blur"><dt class="text-xs text-brand-100">Host countries</dt><dd class="tnum text-2xl font-bold">{{ stats.countries }}</dd></div>
+        </dl>
+      </div>
+      <div class="rounded-2xl bg-white/95 p-4 text-slate-800 shadow-xl dark:bg-slate-900/95 dark:text-slate-200">
+        <h2 class="mb-2 flex items-center gap-2 text-sm font-semibold">{% icon "flame" "h-4 w-4 text-rose-500" %}Closing soon</h2>
+        <ul class="divide-y divide-slate-100 dark:divide-slate-800">
+          {% for c in closing_soon %}
+          <li x-data="countdown('{{ c.submission_deadline.isoformat }}')">
+            <a href="{{ c.venue.get_absolute_url }}" class="flex items-center gap-3 rounded-md px-1 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-800/60">
+              <span class="w-6 text-center" aria-hidden="true">{{ c.venue.country_flag_emoji }}</span>
+              <span class="min-w-0 flex-1"><span class="block truncate font-semibold">{{ c.venue.acronym }} {{ c.year }}</span>
+                <span class="muted block truncate text-xs" x-text="local">{{ c.submission_deadline|date:"M j, H:i" }} UTC</span></span>
+              <span class="tnum shrink-0 rounded-md px-2 py-0.5 text-xs font-semibold" :class="urgent ? 'bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300' : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'" x-text="`${d}d ${h}h ${m}m`">{{ c.submission_deadline|timeuntil }}</span>
+            </a>
+          </li>
+          {% empty %}<li class="muted py-3 text-sm">No upcoming deadlines recorded.</li>{% endfor %}
+        </ul>
+        <button type="button" class="link mt-2 text-xs" @click="closingWithin('30')">See everything closing within 30 days →</button>
+      </div>
+    </div>
   </section>
 
-  <div class="grid gap-6 lg:grid-cols-[18rem_1fr]">
+  <div x-data="dismissible('explore-tip')" x-show="!hidden" x-cloak class="mb-5 flex items-start gap-3 rounded-xl border border-brand-200 bg-brand-50 px-4 py-3 text-sm text-brand-900 dark:border-brand-500/30 dark:bg-brand-500/10 dark:text-brand-100">
+    {% icon "info" "mt-0.5 h-4 w-4 shrink-0" %}
+    <p class="flex-1"><strong>Tips:</strong> click ☆ to save a venue to <a class="underline" href="{% url 'venues:targets' %}">My Targets</a>, tick <em>Compare</em> on up to four venues, and press <kbd class="kbd">?</kbd> for keyboard shortcuts. Deadlines marked <em>Projected</em> are estimates — always confirm on the official site.</p>
+    <button type="button" class="btn-ghost -my-1 p-1" @click="dismiss()" aria-label="Dismiss tips">{% icon "x" "h-4 w-4" %}</button>
+  </div>
+
+  <div class="grid gap-6 lg:grid-cols-[18.5rem_1fr]">
     <!-- Filters -->
-    <aside>
-      <button type="button" class="mb-3 flex w-full items-center justify-between rounded-lg border border-slate-300 px-3 py-2 text-sm lg:hidden dark:border-slate-700" @click="filtersOpen = !filtersOpen">
-        <span>{% icon "sliders-horizontal" "mr-1 inline h-4 w-4" %}Filters</span><span x-text="filtersOpen ? 'Hide' : 'Show'"></span>
+    <aside aria-label="Filters">
+      <button type="button" class="btn-secondary mb-3 w-full justify-between lg:hidden" @click="filtersOpen = !filtersOpen" :aria-expanded="filtersOpen.toString()" aria-controls="filters">
+        <span class="flex items-center gap-2">{% icon "sliders-horizontal" "h-4 w-4" %}Filters{% if chips %} <span class="rounded-full bg-brand-600 px-1.5 text-xs text-white">{{ chips|length }}</span>{% endif %}</span><span x-text="filtersOpen ? 'Hide' : 'Show'">Show</span>
       </button>
-      <form id="filters" :class="filtersOpen ? '' : 'hidden lg:block'"
-            hx-get="{% url 'venues:list' %}" hx-target="#results" hx-push-url="true" hx-trigger="change, input changed delay:250ms from:#q, submit" hx-indicator="#results"
-            class="space-y-4 rounded-xl border border-slate-200 bg-white p-4 text-sm dark:border-slate-800 dark:bg-slate-900" @submit.prevent>
-        <div>
-          <label for="q" class="sr-only">Search</label>
-          <div class="relative">{% icon "search" "pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" %}
-          <input id="q" name="q" type="search" value="{{ params.q }}" placeholder="Search name, acronym, topic…" autocomplete="off"
-                 class="w-full rounded-lg border border-slate-300 bg-transparent py-2 pl-8 pr-2 dark:border-slate-700"></div>
+      <form id="filters" :class="filtersOpen ? '' : 'hidden lg:block'" class="card space-y-1 p-4 text-sm lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto"
+            hx-get="{% url 'venues:list' %}" hx-target="#results" hx-push-url="true" hx-trigger="change, input changed delay:300ms from:#q, submit" hx-indicator="#results" hx-sync="this:replace"
+            @submit.prevent role="search" aria-label="Filter venues">
+        <div class="pb-3">
+          <label for="q" class="sr-only">Search venues</label>
+          <div class="relative">{% icon "search" "pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-slate-400" %}
+            <input id="q" name="q" type="search" value="{{ params.q }}" placeholder="Name, acronym, topic…  (/)" autocomplete="off" class="input pl-9"></div>
         </div>
+        <input type="hidden" name="view" value="{{ view_mode }}">
 
-        <div class="grid grid-cols-2 gap-2">
-          <label class="text-xs text-slate-500">Sort by
-            <select name="sort" class="mt-1 w-full rounded-lg border border-slate-300 bg-white py-1.5 text-sm text-slate-800 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
-              {% for key, label in sort_options %}<option value="{{ key }}" {% if sort == key %}selected{% endif %}>{{ label }}</option>{% endfor %}
-            </select></label>
-          <label class="text-xs text-slate-500">Direction
-            <select name="dir" class="mt-1 w-full rounded-lg border border-slate-300 bg-white py-1.5 text-sm text-slate-800 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
-              <option value="" {% if not params.dir %}selected{% endif %}>Default</option>
-              <option value="asc" {% if params.dir == 'asc' %}selected{% endif %}>Ascending</option>
-              <option value="desc" {% if params.dir == 'desc' %}selected{% endif %}>Descending</option>
-            </select></label>
-        </div>
+        <details open class="group border-t border-slate-100 py-3 dark:border-slate-800">
+          <summary class="flex cursor-pointer list-none items-center justify-between font-semibold">Status &amp; timing{% icon "chevron-down" "h-4 w-4 text-slate-400 transition group-open:rotate-180" %}</summary>
+          <fieldset class="mt-2"><legend class="sr-only">Deadline status</legend>
+            <div class="flex flex-wrap gap-1.5">
+              <label class="cursor-pointer"><input type="radio" name="status" value="" class="peer sr-only" {% if not params.status %}checked{% endif %}><span class="chip peer-checked:border-brand-600 peer-checked:bg-brand-50 peer-checked:text-brand-700 peer-focus-visible:ring-2 peer-focus-visible:ring-brand-500 dark:peer-checked:bg-brand-500/15 dark:peer-checked:text-brand-200">Any</span></label>
+              {% for v, l in status_choices %}<label class="cursor-pointer"><input type="radio" name="status" value="{{ v }}" class="peer sr-only" {% if params.status == v %}checked{% endif %}><span class="chip peer-checked:border-brand-600 peer-checked:bg-brand-50 peer-checked:text-brand-700 peer-focus-visible:ring-2 peer-focus-visible:ring-brand-500 dark:peer-checked:bg-brand-500/15 dark:peer-checked:text-brand-200">{{ l }}</span></label>{% endfor %}
+            </div></fieldset>
+          <label for="within" class="mb-1 mt-3 block text-xs font-medium text-slate-600 dark:text-slate-400">Paper deadline within</label>
+          <select id="within" name="within" class="input py-1.5">
+            <option value="">Any time</option>
+            {% for v, l in within_choices %}<option value="{{ v }}" {% if params.within == v %}selected{% endif %}>{{ l }}</option>{% endfor %}
+          </select>
+        </details>
 
-        <fieldset><legend class="mb-1 font-semibold">Deadline status</legend>
-          <div class="flex flex-wrap gap-x-3 gap-y-1">
-            <label class="inline-flex items-center gap-1"><input type="radio" name="status" value="" {% if not params.status %}checked{% endif %}>Any</label>
-            {% for v, l in status_choices %}<label class="inline-flex items-center gap-1"><input type="radio" name="status" value="{{ v }}" {% if params.status == v %}checked{% endif %}>{{ l }}</label>{% endfor %}
-          </div></fieldset>
+        <details open class="group border-t border-slate-100 py-3 dark:border-slate-800">
+          <summary class="flex cursor-pointer list-none items-center justify-between font-semibold">Venue type{% icon "chevron-down" "h-4 w-4 text-slate-400 transition group-open:rotate-180" %}</summary>
+          <fieldset class="mt-2 space-y-1"><legend class="sr-only">Venue type</legend>
+            {% for v, l in type_choices %}<label class="flex items-center gap-2"><input type="checkbox" name="type" value="{{ v }}" {% checked params 'type' v %}>{{ l }}</label>{% endfor %}</fieldset>
+        </details>
 
-        <fieldset><legend class="mb-1 font-semibold">Venue type</legend>
-          {% for v, l in type_choices %}<label class="mr-3 inline-flex items-center gap-1"><input type="checkbox" name="type" value="{{ v }}" {% checked params 'type' v %}>{{ l }}</label>{% endfor %}</fieldset>
+        <details open class="group border-t border-slate-100 py-3 dark:border-slate-800">
+          <summary class="flex cursor-pointer list-none items-center justify-between font-semibold">Ranking &amp; impact{% icon "chevron-down" "h-4 w-4 text-slate-400 transition group-open:rotate-180" %}</summary>
+          <fieldset class="mt-2"><legend class="mb-1 text-xs font-medium text-slate-600 dark:text-slate-400">CORE rank</legend>
+            <div class="flex flex-wrap gap-x-3 gap-y-1">{% for v, l in core_choices %}<label class="flex items-center gap-1.5"><input type="checkbox" name="core" value="{{ v }}" {% checked params 'core' v %}>{{ l }}</label>{% endfor %}</div></fieldset>
+          <fieldset class="mt-3"><legend class="mb-1 text-xs font-medium text-slate-600 dark:text-slate-400">CCF rank</legend>
+            <div class="flex flex-wrap gap-x-3 gap-y-1">{% for v, l in ccf_choices %}<label class="flex items-center gap-1.5"><input type="checkbox" name="ccf" value="{{ v }}" {% checked params 'ccf' v %}>{{ l }}</label>{% endfor %}</div></fieldset>
+          <fieldset class="mt-3"><legend class="mb-1 text-xs font-medium text-slate-600 dark:text-slate-400">Journal quartile</legend>
+            <div class="flex flex-wrap gap-x-3 gap-y-1">{% for v, l in quartile_choices %}<label class="flex items-center gap-1.5"><input type="checkbox" name="quartile" value="{{ v }}" {% checked params 'quartile' v %}>{{ l }}</label>{% endfor %}</div></fieldset>
+          <div class="mt-3"><label for="min_if" class="mb-1 flex justify-between text-xs font-medium text-slate-600 dark:text-slate-400">Minimum impact factor <span class="tnum font-semibold text-brand-700 dark:text-brand-300" x-text="Number(minIf).toFixed(1)">{{ params.min_if|default:"0.0" }}</span></label>
+            <input id="min_if" name="min_if" type="range" min="0" max="60" step="0.5" value="{{ params.min_if|default:0 }}" x-model="minIf" class="w-full" aria-valuetext="Impact factor at least {{ params.min_if|default:0 }}"></div>
+        </details>
 
-        <fieldset><legend class="mb-1 font-semibold">CORE rank</legend>
-          {% for v, l in core_choices %}<label class="mr-2 inline-flex items-center gap-1"><input type="checkbox" name="core" value="{{ v }}" {% checked params 'core' v %}>{{ l }}</label>{% endfor %}</fieldset>
+        <details {% if params.domain or params.tag %}open{% endif %} class="group border-t border-slate-100 py-3 dark:border-slate-800">
+          <summary class="flex cursor-pointer list-none items-center justify-between font-semibold">Research topic{% icon "chevron-down" "h-4 w-4 text-slate-400 transition group-open:rotate-180" %}</summary>
+          <fieldset class="mt-2 space-y-1"><legend class="mb-1 text-xs font-medium text-slate-600 dark:text-slate-400">Domain</legend>
+            {% for d in domains %}<label class="flex items-start gap-2"><input type="checkbox" name="domain" value="{{ d }}" class="mt-0.5" {% checked params 'domain' d %}>{{ d }}</label>{% endfor %}</fieldset>
+          <fieldset class="mt-3" x-data="{ tagq: '' }"><legend class="mb-1 text-xs font-medium text-slate-600 dark:text-slate-400">Subfield tags</legend>
+            <label for="tag-filter" class="sr-only">Filter tags</label>
+            <input id="tag-filter" type="search" x-model="tagq" placeholder="Filter tags…" class="input mb-2 py-1 text-xs" form="no-submit" autocomplete="off" @change.stop @input.stop>
+            <div class="max-h-48 space-y-1 overflow-auto pr-1">{% for t in tags %}
+              <label class="flex items-center gap-2" x-show="!tagq || '{{ t.name|lower|escapejs }}'.includes(tagq.toLowerCase())"><input type="checkbox" name="tag" value="{{ t.slug }}" {% checked params 'tag' t.slug %}><span class="flex-1">{{ t.name }}</span><span class="muted text-xs">{{ t.n }}</span></label>{% endfor %}</div>
+          </fieldset>
+        </details>
 
-        <fieldset><legend class="mb-1 font-semibold">CCF rank</legend>
-          {% for v, l in ccf_choices %}<label class="mr-2 inline-flex items-center gap-1"><input type="checkbox" name="ccf" value="{{ v }}" {% checked params 'ccf' v %}>{{ l }}</label>{% endfor %}</fieldset>
-
-        <fieldset><legend class="mb-1 font-semibold">Journal quartile</legend>
-          {% for v, l in quartile_choices %}<label class="mr-2 inline-flex items-center gap-1"><input type="checkbox" name="quartile" value="{{ v }}" {% checked params 'quartile' v %}>{{ l }}</label>{% endfor %}</fieldset>
-
-        <div><label for="min_if" class="mb-1 flex justify-between font-semibold">Min. impact factor <span class="tnum text-brand-600 dark:text-brand-500" x-text="Number(minIf).toFixed(1)"></span></label>
-          <input id="min_if" name="min_if" type="range" min="0" max="60" step="0.5" value="{{ params.min_if|default:0 }}" x-model="minIf" class="w-full accent-indigo-600"></div>
-
-        <fieldset><legend class="mb-1 font-semibold">Review model</legend>
-          {% for v, l in review_choices %}<label class="block"><input type="checkbox" name="review" value="{{ v }}" {% checked params 'review' v %}> {{ l }}</label>{% endfor %}</fieldset>
-
-        <label class="flex items-center gap-2 font-semibold"><input type="checkbox" name="oa" value="1" {% if params.oa %}checked{% endif %}>Open access only</label>
-
-        <details {% if params.domain %}open{% endif %}><summary class="cursor-pointer font-semibold">Research domain</summary>
-          <div class="mt-1 space-y-0.5">{% for d in domains %}<label class="block"><input type="checkbox" name="domain" value="{{ d }}" {% checked params 'domain' d %}> {{ d }}</label>{% endfor %}</div></details>
-
-        <details {% if params.tag %}open{% endif %}><summary class="cursor-pointer font-semibold">Subfield tags</summary>
-          <div class="mt-1 max-h-48 space-y-0.5 overflow-auto">{% for t in tags %}<label class="block"><input type="checkbox" name="tag" value="{{ t.slug }}" {% checked params 'tag' t.slug %}> {{ t.name }}</label>{% endfor %}</div></details>
-
-        <details {% if params.continent %}open{% endif %}><summary class="cursor-pointer font-semibold">Continent</summary>
-          <div class="mt-1 space-y-0.5">{% for c in continents %}<label class="block"><input type="checkbox" name="continent" value="{{ c }}" {% checked params 'continent' c %}> {{ c }}</label>{% endfor %}</div></details>
-
-        <div><label for="country" class="mb-1 block font-semibold">Country</label>
-          <select id="country" name="country" class="w-full rounded-lg border border-slate-300 bg-white py-1.5 text-sm text-slate-800 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
+        <details {% if params.continent or params.country %}open{% endif %} class="group border-t border-slate-100 py-3 dark:border-slate-800">
+          <summary class="flex cursor-pointer list-none items-center justify-between font-semibold">Location{% icon "chevron-down" "h-4 w-4 text-slate-400 transition group-open:rotate-180" %}</summary>
+          <fieldset class="mt-2 space-y-1"><legend class="mb-1 text-xs font-medium text-slate-600 dark:text-slate-400">Continent</legend>
+            {% for c in continents %}<label class="flex items-center gap-2"><input type="checkbox" name="continent" value="{{ c }}" {% checked params 'continent' c %}>{{ c }}</label>{% endfor %}</fieldset>
+          <label for="country" class="mb-1 mt-3 block text-xs font-medium text-slate-600 dark:text-slate-400">Country</label>
+          <select id="country" name="country" class="input py-1.5">
             <option value="">Any country</option>
             {% for c in countries %}<option value="{{ c }}" {% if params.country == c %}selected{% endif %}>{{ c }}</option>{% endfor %}
-          </select></div>
+          </select>
+        </details>
 
-        <input type="hidden" name="view" id="view-input" value="{{ view_mode }}">
-        {% if user.is_authenticated %}
-        <details class="rounded-lg border border-slate-200 p-2 dark:border-slate-700"><summary class="cursor-pointer font-semibold">Save this search</summary>
-          <div class="mt-2 space-y-2" x-data>
-            <input id="ss-name" placeholder="Name (e.g. Open A* deadlines)" class="w-full rounded border border-slate-300 bg-transparent px-2 py-1 dark:border-slate-700">
-            <label class="flex items-center gap-1 text-xs"><input id="ss-alert" type="checkbox"> Alert me when more venues match</label>
-            <button type="button" class="w-full rounded bg-brand-600 py-1 text-white" @click="saveSearch()">Save</button>
-          </div></details>
-        {% endif %}
-        <button type="button" class="w-full rounded-lg border border-slate-300 py-1.5 text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800" @click="reset()">Reset filters</button>
+        <details {% if params.review or params.oa %}open{% endif %} class="group border-t border-slate-100 py-3 dark:border-slate-800">
+          <summary class="flex cursor-pointer list-none items-center justify-between font-semibold">Submission model{% icon "chevron-down" "h-4 w-4 text-slate-400 transition group-open:rotate-180" %}</summary>
+          <fieldset class="mt-2 space-y-1"><legend class="mb-1 text-xs font-medium text-slate-600 dark:text-slate-400">Peer review</legend>
+            {% for v, l in review_choices %}<label class="flex items-center gap-2"><input type="checkbox" name="review" value="{{ v }}" {% checked params 'review' v %}>{{ l }}</label>{% endfor %}</fieldset>
+          <label class="mt-3 flex items-center gap-2 font-medium"><input type="checkbox" name="oa" value="1" {% if params.oa %}checked{% endif %}>Open access only</label>
+        </details>
+
+        <div class="space-y-2 border-t border-slate-100 pt-3 dark:border-slate-800">
+          {% if user.is_authenticated %}
+          <div x-data="{ o: false }">
+            <button type="button" class="btn-secondary w-full" @click="o = !o" :aria-expanded="o.toString()">{% icon "bell" "h-4 w-4" %}Save this search</button>
+            <div x-show="o" x-cloak class="mt-2 space-y-2 rounded-lg border border-slate-200 p-2 dark:border-slate-700">
+              <label for="ss-name" class="sr-only">Search name</label>
+              <input id="ss-name" form="no-submit" placeholder="Name, e.g. Open A* deadlines" class="input py-1.5" @change.stop @keydown.enter.prevent="saveSearch()">
+              <label class="flex items-center gap-2 text-xs"><input id="ss-alert" form="no-submit" type="checkbox" @change.stop> Notify me when more venues match</label>
+              <button type="button" class="btn-primary w-full" @click="saveSearch()">Save</button>
+            </div>
+          </div>
+          {% else %}
+          <p class="muted text-xs"><a class="link" href="{% url 'accounts:signup' %}">Create a free account</a> to save searches and get alerts.</p>
+          {% endif %}
+          <button type="button" class="btn-ghost w-full" @click="reset()">{% icon "x" "h-4 w-4" %}Reset all filters</button>
+        </div>
       </form>
     </aside>
 
     <!-- Results -->
-    <section class="min-w-0" x-data="{ view: '{{ view_mode }}' }">
-      <div class="mb-3 inline-flex rounded-lg border border-slate-300 p-0.5 dark:border-slate-700" role="tablist" aria-label="View mode">
-        {% for key, label, icon in view_tabs %}
-        <button type="button" role="tab" :aria-selected="view === '{{ key }}'"
-                @click="view = '{{ key }}'; document.getElementById('view-input').value = '{{ key }}'; htmx.trigger('#filters', 'change')"
-                :class="view === '{{ key }}' ? 'bg-brand-600 text-white' : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'"
-                class="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm">{% icon icon "h-4 w-4" %}{{ label }}</button>
-        {% endfor %}
+    <section class="min-w-0" aria-labelledby="results-heading">
+      <h2 id="results-heading" class="sr-only">Results</h2>
+      <div id="results-top" class="mb-3 flex flex-wrap items-center gap-2" x-data="{ view: '{{ view_mode }}' }">
+        <div class="inline-flex rounded-lg border border-slate-300 bg-white p-0.5 dark:border-slate-700 dark:bg-slate-900" role="group" aria-label="View mode">
+          {% for key, label, icon in view_tabs %}
+          <button type="button" :aria-pressed="(view === '{{ key }}').toString()" @click="view = '{{ key }}'; setView('{{ key }}')"
+                  :class="view === '{{ key }}' ? 'bg-brand-600 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'"
+                  class="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm">{% icon icon "h-4 w-4" %}<span class="hidden sm:inline">{{ label }}</span><span class="sr-only sm:hidden">{{ label }}</span></button>
+          {% endfor %}
+        </div>
+        <div class="ml-auto flex items-center gap-2 text-sm">
+          <label for="sort" class="muted hidden sm:inline">Sort</label>
+          <select id="sort" name="sort" form="filters" class="input w-auto py-1.5" @change="submit()">
+            {% for key, label in sort_options %}<option value="{{ key }}" {% if sort == key %}selected{% endif %}>{{ label }}</option>{% endfor %}
+          </select>
+          <label for="dir" class="sr-only">Sort direction</label>
+          <select id="dir" name="dir" form="filters" class="input w-auto py-1.5" @change="submit()">
+            <option value="" {% if not dir %}selected{% endif %}>Default order</option>
+            <option value="asc" {% if dir == 'asc' %}selected{% endif %}>Ascending</option>
+            <option value="desc" {% if dir == 'desc' %}selected{% endif %}>Descending</option>
+          </select>
+        </div>
       </div>
-      <div id="results">{% include "venues/partials/results.html" %}</div>
+      <div id="results" aria-live="polite" aria-busy="false">{% include "venues/partials/results.html" %}</div>
     </section>
   </div>
 </div>

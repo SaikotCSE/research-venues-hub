@@ -1,12 +1,11 @@
-{% load venue_extras %}
 {% with nd=venue.next_deadline status=venue.deadline_status %}
-<article class="flex flex-col rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:shadow-md dark:border-slate-800 dark:bg-slate-900">
+<article class="card group flex flex-col p-4 transition hover:-translate-y-0.5 hover:shadow-lg hover:shadow-slate-200/60 dark:hover:shadow-black/30" aria-labelledby="v-{{ venue.slug }}">
   <div class="flex items-start gap-2">
     <div class="min-w-0 flex-1">
       <div class="flex flex-wrap items-center gap-1.5">
-        <a href="{{ venue.get_absolute_url }}" class="text-lg font-bold hover:text-brand-600 dark:hover:text-brand-500">{{ venue.acronym }}</a>
-        <span class="rounded px-1.5 py-0.5 text-[11px] font-semibold {{ venue|rank_class }}">{{ venue.rank_label }}</span>
-        <span class="rounded px-1.5 py-0.5 text-[11px] font-medium {{ status|status_class }}">{{ status|capfirst }}</span>
+        <h3 id="v-{{ venue.slug }}" class="text-lg font-bold leading-tight"><a href="{{ venue.get_absolute_url }}" class="hover:text-brand-700 dark:hover:text-brand-300">{{ venue.acronym }}</a></h3>
+        <span class="badge {{ venue|rank_class }}">{{ venue.rank_label }}</span>
+        <span class="badge font-medium {{ status|status_class }}">{{ status|capfirst }}</span>
       </div>
       <p class="mt-0.5 line-clamp-2 text-sm text-slate-600 dark:text-slate-400">{{ venue.name }}</p>
     </div>
@@ -14,48 +13,46 @@
   </div>
 
   <div class="mt-2 flex flex-wrap gap-1 text-[11px]">
-    <span class="rounded-full bg-brand-50 px-2 py-0.5 text-brand-700 dark:bg-brand-500/15 dark:text-indigo-300">{{ venue.venue_type }}</span>
-    <span class="rounded-full bg-slate-100 px-2 py-0.5 dark:bg-slate-800">{{ venue.primary_domain }}</span>
-    {% if venue.is_open_access %}<span class="rounded-full bg-emerald-50 px-2 py-0.5 text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-300">Open access</span>{% endif %}
-    <span class="rounded-full bg-slate-100 px-2 py-0.5 dark:bg-slate-800">{{ venue.review_process }}</span>
+    <span class="rounded-full bg-brand-50 px-2 py-0.5 font-medium text-brand-800 dark:bg-brand-500/15 dark:text-brand-200">{{ venue.venue_type }}</span>
+    <span class="rounded-full bg-slate-100 px-2 py-0.5 text-slate-700 dark:bg-slate-800 dark:text-slate-300">{{ venue.primary_domain }}</span>
+    {% if venue.is_open_access %}<span class="rounded-full bg-emerald-50 px-2 py-0.5 text-emerald-800 dark:bg-emerald-400/10 dark:text-emerald-200">Open access</span>{% endif %}
   </div>
 
   <dl class="mt-3 grid grid-cols-3 gap-2 text-center text-xs">
     {% if venue.is_journal %}
-      <div class="rounded-md bg-slate-50 p-1.5 dark:bg-slate-800/60"><dt class="text-slate-500">IF</dt><dd class="text-sm font-semibold">{{ venue.impact_factor|default:"—" }}</dd></div>
-      <div class="rounded-md bg-slate-50 p-1.5 dark:bg-slate-800/60"><dt class="text-slate-500">CiteScore</dt><dd class="text-sm font-semibold">{{ venue.citescore|default:"—" }}</dd></div>
-      <div class="rounded-md bg-slate-50 p-1.5 dark:bg-slate-800/60"><dt class="text-slate-500">Accept.</dt><dd class="text-sm font-semibold">{% if venue.acceptance_rate %}{{ venue.acceptance_rate|floatformat:0 }}%{% else %}—{% endif %}</dd></div>
+      <div class="rounded-lg bg-slate-50 p-1.5 dark:bg-slate-800/60"><dt class="muted">Impact factor</dt><dd class="tnum text-sm font-semibold">{{ venue.impact_factor|default:"—" }}</dd></div>
+      <div class="rounded-lg bg-slate-50 p-1.5 dark:bg-slate-800/60"><dt class="muted">CiteScore</dt><dd class="tnum text-sm font-semibold">{{ venue.citescore|default:"—" }}</dd></div>
     {% else %}
-      <div class="rounded-md bg-slate-50 p-1.5 dark:bg-slate-800/60"><dt class="text-slate-500">CORE</dt><dd class="text-sm font-semibold">{{ venue.core_rank }}</dd></div>
-      <div class="rounded-md bg-slate-50 p-1.5 dark:bg-slate-800/60"><dt class="text-slate-500">h5</dt><dd class="text-sm font-semibold">{{ venue.h5_index|default:"—" }}</dd></div>
-      <div class="rounded-md bg-slate-50 p-1.5 dark:bg-slate-800/60"><dt class="text-slate-500">Accept.</dt><dd class="text-sm font-semibold">{% if venue.acceptance_rate %}{{ venue.acceptance_rate|floatformat:0 }}%{% else %}—{% endif %}</dd></div>
+      <div class="rounded-lg bg-slate-50 p-1.5 dark:bg-slate-800/60"><dt class="muted">h5-index</dt><dd class="tnum text-sm font-semibold">{{ venue.h5_index|default:"—" }}</dd></div>
+      <div class="rounded-lg bg-slate-50 p-1.5 dark:bg-slate-800/60"><dt class="muted">Review</dt><dd class="text-sm font-semibold">{{ venue.review_process|cut:"-Blind"|cut:" Peer Review" }}</dd></div>
     {% endif %}
+    <div class="rounded-lg bg-slate-50 p-1.5 dark:bg-slate-800/60"><dt class="muted">Acceptance</dt><dd class="tnum text-sm font-semibold">{% if venue.acceptance_rate %}{{ venue.acceptance_rate|floatformat:0 }}%{% else %}—{% endif %}</dd></div>
   </dl>
 
   <div class="mt-3 flex-1">
     {% if nd %}
-      {% include "venues/partials/countdown.html" with at=nd.1 kind=nd.0 %}
+      {% include "venues/partials/countdown.html" with at=nd.1 kind=nd.0 projected=venue.next_cycle.is_projected %}
     {% elif venue.is_rolling_submission %}
-      <div class="rounded-lg border border-violet-200 bg-violet-50 p-3 text-sm text-violet-800 dark:border-violet-400/20 dark:bg-violet-400/10 dark:text-violet-300">{% icon "infinity" "mr-1 inline h-4 w-4" %}Rolling submissions — no fixed deadline</div>
+      <div class="flex items-center gap-2 rounded-lg border border-violet-200 bg-violet-50 p-3 text-sm text-violet-900 dark:border-violet-400/20 dark:bg-violet-400/10 dark:text-violet-200">{% icon "infinity" "h-4 w-4 shrink-0" %}Rolling submissions — no fixed deadline</div>
     {% else %}
-      <div class="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-400">
-        {% with last=venue.next_cycle %}{% if last %}Last deadline: {{ last.submission_deadline|date:"M j, Y" }} — next call not announced{% else %}No deadline data{% endif %}{% endwith %}
+      <div class="muted rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm dark:border-slate-700 dark:bg-slate-800/60">
+        {% with last=venue.next_cycle %}{% if last %}Last deadline {{ last.submission_deadline|date:"M j, Y" }} · next call not announced yet{% else %}No deadline data yet{% endif %}{% endwith %}
       </div>
     {% endif %}
   </div>
 
-  <div class="mt-3 flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
-    <span>{{ venue.country_flag_emoji }} {% if venue.city %}{{ venue.city }}, {% endif %}{{ venue.country }}</span>
+  <div class="mt-3 flex items-center gap-2 text-xs text-slate-600 dark:text-slate-400">
+    <span class="truncate"><span aria-hidden="true">{{ venue.country_flag_emoji }}</span> {% if venue.city %}{{ venue.city }}, {% endif %}{{ venue.country }}</span>
+    {% if venue.trackers %}<span class="ml-auto inline-flex shrink-0 items-center gap-1" title="People who starred this venue">{% icon "users" "h-3.5 w-3.5" %}{{ venue.trackers }} tracking</span>{% endif %}
   </div>
 
   <div class="mt-3 flex items-center gap-2 border-t border-slate-100 pt-3 dark:border-slate-800">
-    <button type="button" class="inline-flex items-center gap-1 rounded-md border border-slate-300 px-2 py-1 text-xs hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-800"
-            hx-get="{% url 'venues:modal' venue.slug %}" hx-target="#modal-body" hx-swap="innerHTML" @click="$dispatch('open-modal')">
+    <button type="button" class="btn-secondary py-1 text-xs" hx-get="{% url 'venues:modal' venue.slug %}" hx-target="#modal-body" hx-swap="innerHTML" @click="$dispatch('open-modal')">
       {% icon "eye" "h-3.5 w-3.5" %}Quick view</button>
+    <a href="{{ venue.get_absolute_url }}" class="btn-ghost py-1 text-xs">Details{% icon "chevron-right" "h-3.5 w-3.5" %}</a>
     <label class="ml-auto inline-flex cursor-pointer items-center gap-1.5 text-xs">
-      <input type="checkbox" class="rounded border-slate-300" :checked="$store.compare.has('{{ venue.slug }}')" @change="$store.compare.toggle('{{ venue.slug }}', '{{ venue.acronym|escapejs }}'); $el.checked = $store.compare.has('{{ venue.slug }}')">
-      Compare
-    </label>
+      <input type="checkbox" :checked="$store.compare.has('{{ venue.slug }}')" @change="$store.compare.toggle('{{ venue.slug }}', '{{ venue.acronym|escapejs }}'); $el.checked = $store.compare.has('{{ venue.slug }}')">
+      Compare</label>
   </div>
 </article>
 {% endwith %}

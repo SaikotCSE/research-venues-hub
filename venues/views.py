@@ -1,6 +1,7 @@
 import csv
+import json
 from collections import OrderedDict
-from datetime import date
+from datetime import date, timedelta
 
 from django.core.paginator import Paginator
 from django.db.models import Count
@@ -11,15 +12,29 @@ from django.views.decorators.http import require_GET, require_POST
 
 from config.ratelimit import ratelimit
 
-from .filters import facet_options, filter_venues
+from .filters import active_filters, facet_options, filter_venues, with_tracker_counts
 from .ics import build_calendar
-from .models import Venue, VenueBookmark
-from .ownership import bookmarks_for, get_or_create_bookmark, starred_ids as _starred_ids
+from .models import DeadlineCycle, Venue, VenueBookmark
+from .ownership import bookmarks_for, get_or_create_bookmark
+from .ownership import starred_ids as _starred_ids
 from .serializers import CSV_COLUMNS, venue_to_csv_row, venue_to_dict
+from .timeline import timeline_rows
 
+TABLE_COLUMNS = [
+    # (sort key, label, default direction, alignment)
+    ("name", "Venue", "asc", ""),
+    ("", "Type", "", ""),
+    ("rank", "Rank", "desc", ""),
+    ("impact_factor", "IF", "desc", "right"),
+    ("h5_index", "h5", "desc", "right"),
+    ("acceptance_rate", "Accept.", "asc", "right"),
+    ("deadline", "Next deadline", "asc", ""),
+    ("", "Status", "", ""),
+    ("", "Save · Compare", "", "right"),
+]
 MAX_COMPARE = 4
-VIEW_MODES = ("grid", "table", "calendar")
-PAGE_SIZE = {"grid": 24, "table": 50}
+VIEW_MODES = ("grid", "table", "timeline", "calendar")
+PAGE_SIZE = {"grid": 24, "table": 50, "timeline": 40}
 
 
 # ---------------------------------------------------------------- helpers
@@ -62,28 +77,46 @@ def _calendar_months(venues, now):
 def venue_list(request):
     now = timezone.now()
     view_mode = request.GET.get("view") if request.GET.get("view") in VIEW_MODES else "grid"
-    qs = filter_venues(request.GET, base=_base_qs(), now=now)
+    qs = with_tracker_counts(filter_venues(request.GET, base=_base_qs(), now=now))
     total = qs.count()
     ctx = {
-        "view_mode": view_mode, "total": total, "starred_ids": _starred_ids(request),
-        "sort": request.GET.get("sort") or "deadline", "params": request.GET,
+        "view_mode": view_mode,
+        "total": total,
+        "starred_ids": _starred_ids(request),
+        "sort": request.GET.get("sort") or "deadline",
+        "dir": request.GET.get("dir") or "",
+        "params": request.GET,
+        "chips": active_filters(request.GET),
+        "table_columns": TABLE_COLUMNS,
     }
+    qd = request.GET.copy()
+    qd.pop("page", None)
+    ctx["querystring"] = qd.urlencode()
     if view_mode == "calendar":
         ctx["months"] = _calendar_months(list(qs), now)
+    elif view_mode == "timeline":
+        timeline = timeline_rows(qs.exclude(is_rolling_submission=True), timezone.localdate())
+        page = Paginator(timeline["rows"], PAGE_SIZE["timeline"]).get_page(request.GET.get("page"))
+        ctx.update(timeline=timeline, page_obj=page, rolling_hidden=qs.filter(is_rolling_submission=True).count())
     else:
-        page = Paginator(qs, PAGE_SIZE[view_mode]).get_page(request.GET.get("page"))
-        ctx["page_obj"] = page
-        qd = request.GET.copy()
-        qd.pop("page", None)
-        ctx["querystring"] = qd.urlencode()
+        ctx["page_obj"] = Paginator(qs, PAGE_SIZE[view_mode]).get_page(request.GET.get("page"))
     if _is_htmx(request):
         return render(request, "venues/partials/results.html", ctx)
     ctx.update(facet_options())
-    ctx["stats"] = {
-        "venues": Venue.objects.count(),
-        "open": Venue.objects.filter(cycles__submission_deadline__gte=now).distinct().count(),
-    }
+    ctx["stats"] = _home_stats(now)
+    ctx["closing_soon"] = (
+        DeadlineCycle.objects.filter(submission_deadline__gte=now).select_related("venue").order_by("submission_deadline")[:6]
+    )
     return render(request, "venues/venue_list.html", ctx)
+
+
+def _home_stats(now):
+    return {
+        "venues": Venue.objects.count(),
+        "open": Venue.objects.filter(cycles__submission_deadline__gte=now, cycles__submission_open_date__lte=now).distinct().count(),
+        "closing_30": DeadlineCycle.objects.filter(submission_deadline__gte=now, submission_deadline__lte=now + timedelta(days=30)).count(),
+        "countries": Venue.objects.exclude(country__in=["", "Online"]).values("country").distinct().count(),
+    }
 
 
 @require_GET
@@ -171,7 +204,8 @@ def toggle_bookmark(request, slug):
     bm.is_starred = not bm.is_starred
     bm.save(update_fields=["is_starred", "updated_at"])
     resp = render(request, "venues/partials/star_button.html", {"venue": venue, "starred": bm.is_starred})
-    resp["HX-Trigger"] = "targets-changed"
+    message = f"Saved {venue.acronym} to My Targets" if bm.is_starred else f"Removed {venue.acronym} from My Targets"
+    resp["HX-Trigger"] = json.dumps({"toast": {"message": message, "type": "success"}, "targets-changed": True})
     return resp
 
 
