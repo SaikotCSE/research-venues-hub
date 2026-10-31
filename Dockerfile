@@ -14,13 +14,16 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PATH=/opt/venv/bin:$PATH \
     DJANGO_SETTINGS_MODULE=config.settings.production \
+    DATABASE_URL=sqlite:////app/data/db.sqlite3 \
     PORT=8000
 RUN groupadd --system app && useradd --system --gid app --home-dir /app --shell /usr/sbin/nologin app
 WORKDIR /app
 COPY --from=builder /opt/venv /opt/venv
 COPY --chown=app:app . .
 RUN DJANGO_SECRET_KEY=collectstatic-only python manage.py collectstatic --noinput \
-    && chown -R app:app /app/staticfiles
+    && mkdir -p /app/data \
+    && chown -R app:app /app/staticfiles /app/data
+# SQLite lives in /app/data by default (mount a volume there); set DATABASE_URL for PostgreSQL.
 USER app
 EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 CMD ["python", "-m", "config.healthcheck"]

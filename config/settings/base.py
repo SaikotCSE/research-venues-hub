@@ -36,6 +36,8 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
+    # Compress HTML/JSON (Django 4.2+ includes the "Heal The BREACH" mitigation).
+    "django.middleware.gzip.GZipMiddleware",
     "config.middleware.RequestIDMiddleware",
     "config.middleware.SecurityHeadersMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",

@@ -217,3 +217,13 @@ class RateLimitTests(TestCase):
         r = self.client.get(reverse("venues:api_venues"))
         self.assertEqual(r.status_code, 429)
         self.assertIn("retry_after", r.json())
+
+
+class CompressionTests(TestCase):
+    def test_html_and_json_are_gzipped(self):
+        call_command("seed_venues", verbosity=0)
+        r = self.client.get(reverse("venues:list"), HTTP_ACCEPT_ENCODING="gzip")
+        self.assertEqual(r["Content-Encoding"], "gzip")
+        self.assertIn("Accept-Encoding", r["Vary"])
+        self.assertLess(len(r.content), 60_000)
+        self.assertEqual(self.client.get(reverse("venues:api_venues"), HTTP_ACCEPT_ENCODING="gzip")["Content-Encoding"], "gzip")
