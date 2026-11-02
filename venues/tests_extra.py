@@ -229,7 +229,7 @@ class ExploreUXTests(TestCase):
 
     def test_home_closing_soon(self):
         home = self.client.get("/api/app/home/").json()
-        self.assertEqual(home["stats"]["venues"], 113)
+        self.assertEqual(home["stats"]["venues"], 136)
         deadlines = [c["cycle"]["submission_deadline"] for c in home["closing_soon"]]
         self.assertEqual(deadlines, sorted(deadlines))
         self.assertTrue(all(d >= (timezone.now() - timedelta(minutes=1)).isoformat() for d in deadlines))

@@ -2,6 +2,16 @@
 
 All notable changes to this project are documented here. Dates are in UTC.
 
+## [Unreleased]
+
+### Added
+- 23 venues for medical image segmentation, domain generalization and test-time adaptation: MLMI, SPIE Medical
+  Imaging, EMBC, BIBM, BMVC and ICIP; MELBA, CMIG, CMPB, IEEE TBME, Medical Physics, AIIM, Radiology: AI, BSPC,
+  JMI, IEEE TCSVT, IEEE TMM, CVIU, Pattern Recognition Letters, Neurocomputing, Knowledge-Based Systems, Expert
+  Systems with Applications and Scientific Reports.
+- "Domain Generalization" and "Test-Time Adaptation" topics on the venues that regularly publish that work
+  (MICCAI, MIDL, IEEE TMI, MedIA, CVPR, ICCV, ECCV, NeurIPS, ICML, ICLR), so topic filters and the recommender find them.
+
 ## [2.0.0] — 2026-10-31
 
 ### Changed

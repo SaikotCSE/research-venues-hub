@@ -33,8 +33,8 @@ serves a JSON API, server-rendered SEO metadata, the admin, emails, feeds and ex
 ## Features
 
 **Discover**
-- 113 seeded venues (AI/ML, NLP, vision, medical imaging & bioinformatics, systems, security, databases, SE, HCI, web,
-  multidisciplinary science) with 230+ deadline cycles.
+- 136 seeded venues (AI/ML, NLP, vision, medical imaging & bioinformatics, systems, security, databases, SE, HCI, web,
+  multidisciplinary science) with 250+ deadline cycles.
 - Instant filtering — type, domain, topics, CORE/CCF rank, journal quartile, minimum impact factor, country/continent,
   review model, open access, deadline status and *closing within N days* — with removable chips and shareable URLs.
 - Four views: **cards**, sortable **table**, Gantt-style **timeline** (call → review → camera-ready → event) and a

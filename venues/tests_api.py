@@ -65,7 +65,8 @@ class PublicApiTests(TestCase):
     def test_page_size_bounds(self):
         self.assertEqual(self.client.get(reverse("venues:api_venues"), {"page_size": 1000}).json()["page_size"], 200)
         self.assertEqual(self.client.get(reverse("venues:api_venues"), {"page_size": "0"}).json()["page_size"], 1)
-        self.assertEqual(self.client.get(reverse("venues:api_venues"), {"page": 999}).json()["page"], 5)
+        last = self.client.get(reverse("venues:api_venues"), {"page": 999}).json()
+        self.assertEqual(last["page"], last["num_pages"])
 
     def test_insights_cached_and_stamped(self):
         d = self.client.get(reverse("venues:api_insights")).json()
