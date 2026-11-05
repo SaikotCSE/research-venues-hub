@@ -34,7 +34,7 @@ export function UserMenu({ session }: { session: Session }) {
     { to: "/tracker/", label: "Submission tracker", icon: KanbanSquare },
     { to: "/tracker/papers/", label: "My papers", icon: FileText },
     { to: "/accounts/lists/", label: "My lists", icon: List },
-    { to: "/accounts/profile/", label: "Profile & API", icon: User },
+    { to: "/accounts/profile/", label: "Profile", icon: User },
     { to: "/accounts/settings/", label: "Account settings", icon: Settings },
   ];
   return (

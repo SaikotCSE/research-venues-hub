@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { CalendarClock, LogIn, Star } from "lucide-react";
+import { LogIn, Star } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import { EmptyState, ErrorState, PageContainer, PageHeader } from "@/components/common/page";
@@ -28,20 +28,7 @@ export function Component() {
         description={
           data?.count ? `${data.count} starred · ${upcoming} with an upcoming deadline, soonest first.` : "Star venues to collect their deadlines here."
         }
-        actions={
-          data?.count ? (
-            <>
-              <ExportMenu query="" scope="targets" />
-              {session.authenticated && (
-                <Button variant="secondary" size="sm" asChild>
-                  <Link to="/accounts/profile/#calendar">
-                    <CalendarClock aria-hidden="true" /> Calendar feed
-                  </Link>
-                </Button>
-              )}
-            </>
-          ) : null
-        }
+        actions={data?.count ? <ExportMenu query="" scope="targets" /> : null}
       />
       {!session.authenticated && !!data?.count && (
         <div className="mb-6 flex flex-wrap items-center gap-3 rounded-xl border border-primary/20 bg-brand-soft/60 px-4 py-3 text-sm">

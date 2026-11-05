@@ -50,7 +50,7 @@ export function useStar() {
       qc.invalidateQueries({ queryKey: keys.targets });
       qc.invalidateQueries({ queryKey: keys.dashboard });
       toast.success(data.starred ? `Saved ${acronym} to My Targets` : `Removed ${acronym} from My Targets`, {
-        description: data.starred ? "You'll see its deadlines on your targets page and calendar feed." : undefined,
+        description: data.starred ? "You'll see its deadlines on your targets page." : undefined,
       });
     },
   });

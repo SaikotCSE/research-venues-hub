@@ -1,4 +1,8 @@
-"""Hand-maintained OpenAPI 3.1 description of the public and token-authenticated JSON API."""
+"""Hand-maintained OpenAPI 3.1 description of the public JSON API.
+
+The token-authenticated ``/api/v1/me/`` endpoints are deliberately left out: tokens are issued by an admin
+(``manage.py issue_api_token``), not shown to users, so the public docs don't advertise them.
+"""
 
 from django.http import JsonResponse
 from django.views.decorators.cache import cache_control
@@ -39,16 +43,6 @@ API_ENDPOINTS = [
         ],
     ),
     (
-        "Your account (bearer token)",
-        [
-            ("GET", "/api/v1/me/", "Your profile"),
-            ("GET", "/api/v1/me/targets/", "Your starred venues"),
-            ("POST", "/api/v1/me/targets/", 'Star a venue — body {"slug": "cvpr"}'),
-            ("DELETE", "/api/v1/me/targets/{slug}/", "Unstar a venue"),
-            ("GET", "/api/v1/me/submissions/", "Your tracked submissions"),
-        ],
-    ),
-    (
         "Feeds & exports (public)",
         [
             ("GET", "/calendar.ics?…", "iCalendar feed of every upcoming milestone matching the filters"),
@@ -73,12 +67,10 @@ def build_schema(server_url: str) -> dict:
         "info": {
             "title": "VenuePulse API",
             "version": "1.0.0",
-            "description": "Research venues, ranks and deadlines. Public endpoints need no authentication; "
-            "`/api/v1/me/*` endpoints require `Authorization: Bearer <token>` (see your profile).",
+            "description": "Research venues, ranks and deadlines. Read-only; no authentication needed.",
         },
         "servers": [{"url": server_url}],
         "components": {
-            "securitySchemes": {"bearerAuth": {"type": "http", "scheme": "bearer"}},
             "schemas": {
                 "Error": {"type": "object", "properties": {"error": {"type": "string"}}, "required": ["error"]},
                 "Deadline": {
@@ -184,54 +176,6 @@ def build_schema(server_url: str) -> dict:
                     "tags": ["Venues"],
                     "parameters": [_param("q", "string", "Prefix or substring")],
                     "responses": {"200": {"description": "Up to 8 matches"}},
-                }
-            },
-            "/api/v1/me/": {
-                "get": {
-                    "summary": "Your profile",
-                    "tags": ["Me"],
-                    "security": [{"bearerAuth": []}],
-                    "responses": {"200": {"description": "Profile"}, "401": error},
-                }
-            },
-            "/api/v1/me/targets/": {
-                "get": {
-                    "summary": "Your starred venues",
-                    "tags": ["Me"],
-                    "security": [{"bearerAuth": []}],
-                    "responses": {"200": {"description": "Starred venues"}, "401": error},
-                },
-                "post": {
-                    "summary": "Star a venue",
-                    "tags": ["Me"],
-                    "security": [{"bearerAuth": []}],
-                    "requestBody": {
-                        "required": True,
-                        "content": {"application/json": {"schema": {"type": "object", "properties": {"slug": {"type": "string"}}, "required": ["slug"]}}},
-                    },
-                    "responses": {
-                        "201": {"description": "Starred", "content": {"application/json": {"schema": venue_ref}}},
-                        "400": error,
-                        "401": error,
-                        "404": error,
-                    },
-                },
-            },
-            "/api/v1/me/targets/{slug}/": {
-                "delete": {
-                    "summary": "Unstar a venue",
-                    "tags": ["Me"],
-                    "security": [{"bearerAuth": []}],
-                    "parameters": [_param("slug", "string", "Venue slug", "path")],
-                    "responses": {"200": {"description": "Removed"}, "401": error, "404": error},
-                }
-            },
-            "/api/v1/me/submissions/": {
-                "get": {
-                    "summary": "Your tracked submissions",
-                    "tags": ["Me"],
-                    "security": [{"bearerAuth": []}],
-                    "responses": {"200": {"description": "Submissions"}, "401": error},
                 }
             },
         },

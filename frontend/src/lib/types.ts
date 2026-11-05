@@ -188,7 +188,7 @@ export interface VenueDetail extends VenueCard {
   reviews: Review[];
   changes: DeadlineChange[];
   related: VenueCard[];
-  urls: { page: string; ics: string | null; embed: string; api: string };
+  urls: { page: string; ics: string | null };
   me: {
     starred: boolean;
     note: string;
@@ -306,6 +306,6 @@ export interface Boot {
     venue?: VenueDetail;
     list?: unknown;
   };
-  extra: { reset?: { valid: boolean; uid: string }; not_found?: "page" | "venue" | "list" | "submission" };
+  extra: { not_found?: "page" | "venue" | "list" | "submission" };
   site: { name: string; url: string };
 }

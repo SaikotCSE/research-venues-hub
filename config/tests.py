@@ -75,6 +75,7 @@ class ProductionSettingsTests(SimpleTestCase):
             DJANGO_SECRET_KEY="x7!kP2#qL9$wZ4^mN8&vB3*cR6(tY1)uI5_oA0+sD7=fG2-hJ9~kL4",
             DJANGO_ALLOWED_HOSTS="venuepulse.example.com",
             SITE_URL="https://venuepulse.example.com",
+            BREVO_API_KEY="placeholder",  # email must be configured (sign-up codes)
         )
         self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
 
@@ -244,3 +245,57 @@ class CompressionTests(TestCase):
         self.assertIn("Accept-Encoding", r["Vary"])
         self.assertLess(len(r.content), 60_000)
         self.assertEqual(self.client.get(reverse("venues:api_venues"), HTTP_ACCEPT_ENCODING="gzip")["Content-Encoding"], "gzip")
+
+
+class BrevoBackendTests(SimpleTestCase):
+    def send(self, **kwargs):
+        from unittest import mock
+
+        from django.core.mail import EmailMultiAlternatives
+
+        from config.mail import BrevoEmailBackend
+
+        message = EmailMultiAlternatives("Hi", "plain body", "VenuePulse <venupulse@example.com>", ["Ada <ada@example.com>", "bob@example.com"], **kwargs)
+        message.attach_alternative("<p>html body</p>", "text/html")
+        with mock.patch("urllib.request.urlopen") as urlopen:
+            urlopen.return_value.__enter__.return_value.read.return_value = b'{"messageId": "x"}'
+            sent = BrevoEmailBackend(api_key="secret-key").send_messages([message])
+        return sent, urlopen
+
+    def test_posts_the_message_as_json(self):
+        sent, urlopen = self.send(reply_to=["help@example.com"])
+        self.assertEqual(sent, 1)
+        request = urlopen.call_args.args[0]
+        self.assertEqual(request.full_url, "https://api.brevo.com/v3/smtp/email")
+        self.assertEqual(request.get_header("Api-key"), "secret-key")
+        body = __import__("json").loads(request.data)
+        self.assertEqual(body["sender"], {"email": "venupulse@example.com", "name": "VenuePulse"})
+        self.assertEqual(body["to"], [{"email": "ada@example.com", "name": "Ada"}, {"email": "bob@example.com"}])
+        self.assertEqual((body["subject"], body["textContent"], body["htmlContent"]), ("Hi", "plain body", "<p>html body</p>"))
+        self.assertEqual(body["replyTo"], {"email": "help@example.com"})
+
+    def test_api_errors_raise_unless_silenced(self):
+        import io
+        import urllib.error
+        from unittest import mock
+
+        from django.core.mail import EmailMessage
+
+        from config.mail import BrevoEmailBackend
+
+        error = urllib.error.HTTPError("https://api.brevo.com", 401, "Unauthorized", {}, io.BytesIO(b'{"message":"Key not found"}'))
+        message = EmailMessage("Hi", "body", "a@example.com", ["b@example.com"])
+        with mock.patch("urllib.request.urlopen", side_effect=error):
+            with self.assertRaisesMessage(RuntimeError, "HTTP 401"):
+                BrevoEmailBackend(api_key="k").send_messages([message])
+            self.assertEqual(BrevoEmailBackend(api_key="k", fail_silently=True).send_messages([message]), 0)
+
+
+class EmailDeployCheckTests(SimpleTestCase):
+    def test_warns_when_email_only_goes_to_the_console(self):
+        from config.checks import check_email_backend
+
+        with override_settings(EMAIL_BACKEND="django.core.mail.backends.console.EmailBackend"):
+            self.assertEqual([w.id for w in check_email_backend(None)], ["venuepulse.W003"])
+        with override_settings(EMAIL_BACKEND="config.mail.BrevoEmailBackend"):
+            self.assertEqual(check_email_backend(None), [])

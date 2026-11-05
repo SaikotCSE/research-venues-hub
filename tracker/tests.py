@@ -135,6 +135,6 @@ class TrackerTests(TestCase):
 
     def test_api_submissions(self):
         self.make_sub(status="writing")
-        t = self.user.profile.api_token
+        t = self.user.profile.issue_api_token()
         data = self.client.get(reverse("venues:api_me_submissions"), HTTP_AUTHORIZATION=f"Bearer {t}").json()
         self.assertEqual(data["results"][0]["venue"], "CVPR")

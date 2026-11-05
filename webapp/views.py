@@ -6,7 +6,6 @@ missing venue, redirects for login-only pages), renders metadata crawlers can re
 first screen needs so it paints without waiting for an API round trip.
 """
 
-from django.contrib.auth.tokens import default_token_generator
 from django.contrib.auth.views import redirect_to_login
 from django.shortcuts import redirect, render
 from django.templatetags.static import static
@@ -25,7 +24,7 @@ from venues.services import base_queryset
 from .api.account import list_detail_payload
 from .api.base import error_response
 from .api.catalog import calendar_payload, explore_payload, facets_payload, home_payload, timeline_payload, venue_payload
-from .api.session import RESET_SESSION_KEY, reset_user, session_payload
+from .api.session import session_payload
 
 SITE_NAME = "VenuePulse"
 DEFAULT_DESCRIPTION = "Search, filter, compare and track conference and journal deadlines worldwide, with live countdowns in your timezone and AoE."
@@ -53,13 +52,11 @@ PAGES = {
     "api_docs": ("API documentation", "JSON API, OpenAPI schema, CSV/JSON exports and iCal/Atom feeds for research venue deadlines.", True),
     "login": ("Log in", "Log in to sync your target venues, reminders and submission tracker.", False),
     "signup": ("Create your account", "Free account: sync starred venues across devices, get deadline reminders and track submissions.", False),
-    "password_reset": ("Reset your password", "Request a password reset link.", False),
-    "password_reset_done": ("Check your email", "We sent you a password reset link.", False),
-    "password_reset_confirm": ("Choose a new password", "Set a new password for your account.", False),
+    "password_reset": ("Reset your password", "Get a code by email and choose a new password.", False),
     "password_reset_complete": ("Password updated", "Your password has been reset.", False),
     "password_change": ("Change password", "Change your account password.", False),
     "dashboard": ("Dashboard", "Your deadlines, submissions and alerts at a glance.", False),
-    "profile": ("Profile & API", "Research interests, reminders, calendar feed and API token.", False),
+    "profile": ("Profile", "Research interests, timezone and reminders.", False),
     "settings": ("Account settings", "Email, password, data export and account deletion.", False),
     "notifications": ("Notifications", "Deadline reminders, change alerts and saved-search matches.", False),
     "lists": ("My lists", "Named, shareable collections of venues.", False),
@@ -88,8 +85,6 @@ PAGE_MODULES = {
     "login": "pages/auth/login.tsx",
     "signup": "pages/auth/signup.tsx",
     "password_reset": "pages/auth/password-reset.tsx",
-    "password_reset_done": "pages/auth/password-reset-done.tsx",
-    "password_reset_confirm": "pages/auth/password-reset-confirm.tsx",
     "password_reset_complete": "pages/auth/password-reset-complete.tsx",
     "password_change": "pages/auth/password-change.tsx",
     "dashboard": "pages/account/dashboard.tsx",
@@ -230,21 +225,6 @@ def guest_page(page):
 
     view.__name__ = f"{page}_page"
     return view
-
-
-@require_GET
-def password_reset_confirm(request, uidb64, token):
-    """Validate the emailed link, then move the token into the session so it never sits in the address bar."""
-    user = reset_user(uidb64)
-    if token == "set-password":
-        session_token = request.session.get(RESET_SESSION_KEY)
-        valid = bool(user and session_token and default_token_generator.check_token(user, session_token))
-    elif user is not None and default_token_generator.check_token(user, token):
-        request.session[RESET_SESSION_KEY] = token
-        return redirect(request.path.replace(token, "set-password"))
-    else:
-        valid = False
-    return render_shell(request, "password_reset_confirm", extra={"reset": {"valid": valid, "uid": uidb64}})
 
 
 # ------------------------------------------------------------------ signed-in pages

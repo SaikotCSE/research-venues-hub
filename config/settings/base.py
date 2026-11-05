@@ -120,15 +120,23 @@ CSRF_FAILURE_VIEW = "webapp.views.csrf_failure"  # JSON for /api/ callers
 SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
 SECURE_CROSS_ORIGIN_OPENER_POLICY = "same-origin"
 
-# Email: SMTP when EMAIL_HOST is set, console otherwise.
-if env("EMAIL_HOST"):
+# Email: Brevo's HTTPS API when BREVO_API_KEY is set (for hosts that block SMTP, e.g. Render's free plan),
+# else SMTP when EMAIL_HOST is set (e.g. Gmail with an app password), else printed to the console.
+# Sign-up and password reset need working email: they send one-time codes.
+BREVO_API_KEY = env("BREVO_API_KEY")
+EMAIL_TIMEOUT = 15
+if BREVO_API_KEY:
+    EMAIL_BACKEND = "config.mail.BrevoEmailBackend"
+elif env("EMAIL_HOST"):
     EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
     EMAIL_HOST = env("EMAIL_HOST")
     EMAIL_PORT = env_int("EMAIL_PORT", 587)
     EMAIL_HOST_USER = env("EMAIL_HOST_USER")
     EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD")
     EMAIL_USE_TLS = env_bool("EMAIL_USE_TLS", True)
-    EMAIL_TIMEOUT = 15
+elif env("EMAIL_FILE_PATH"):  # development/e2e: one file per email in this directory
+    EMAIL_BACKEND = "django.core.mail.backends.filebased.EmailBackend"
+    EMAIL_FILE_PATH = env("EMAIL_FILE_PATH")
 else:
     EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 DEFAULT_FROM_EMAIL = env("DJANGO_FROM_EMAIL", "VenuePulse <noreply@venuepulse.local>")
@@ -159,6 +167,7 @@ RATELIMITS = {
     "signup": "5/h",
     "password_reset": "5/h",
     "verify_email": "3/h",
+    "email_code": "30/h",  # checking or re-sending an emailed sign-up/reset code (each address has its own limits too)
     "community_write": "30/h",
     "api_public": "300/m",
     "api_token": "120/m",

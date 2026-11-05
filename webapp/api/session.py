@@ -1,4 +1,8 @@
-"""Session state and authentication: login, signup, logout, password reset/change, email verification."""
+"""Session state and authentication: login, signup, logout, password reset/change, email verification.
+
+Signing up and resetting a password both prove ownership of the email address with a one-time code
+(see accounts/otp.py): step one emails the code, step two submits it.
+"""
 
 import logging
 
@@ -6,12 +10,15 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import get_user_model, login, logout, update_session_auth_hash
 from django.contrib.auth.forms import AuthenticationForm, PasswordChangeForm, PasswordResetForm, SetPasswordForm
-from django.contrib.auth.tokens import default_token_generator
+from django.contrib.auth.hashers import make_password
+from django.core.exceptions import ValidationError
+from django.core.validators import validate_email
+from django.db import IntegrityError, transaction
 from django.middleware.csrf import get_token
 from django.urls import reverse
-from django.utils.encoding import force_str
-from django.utils.http import url_has_allowed_host_and_scheme, urlsafe_base64_decode
+from django.utils.http import url_has_allowed_host_and_scheme
 
+from accounts import otp
 from accounts.forms import SignUpForm
 from accounts.verification import send_verification_email
 from config.ratelimit import ratelimit
@@ -20,7 +27,7 @@ from venues.ownership import bookmarks_for
 from .base import ApiError, endpoint, form_error, text
 
 logger = logging.getLogger("venuepulse")
-RESET_SESSION_KEY = "_password_reset_token"
+Purpose = otp.Purpose
 
 
 def session_payload(request, drain_messages=True):
@@ -81,9 +88,74 @@ def logout_view(request):
     return session_payload(request, drain_messages=False)
 
 
+# ------------------------------------------------------------------ email codes
+def _issue(request, purpose, email, payload):
+    try:
+        return otp.issue(request, purpose, email, payload)
+    except otp.CodeError as exc:
+        raise ApiError(exc.message, exc.status) from None
+
+
+def _verify(request, purpose):
+    try:
+        return otp.verify(request, purpose, text(request.data, "code", 20))
+    except otp.CodeError as exc:
+        raise ApiError(exc.message, exc.status, {"code": [exc.message]}) from None
+
+
+def _code_sent(row, message):
+    return {
+        "ok": True,
+        "email": row.email,
+        "message": message,
+        "expires_in": int(otp.CODE_TTL.total_seconds()),
+        "resend_in": int(otp.RESEND_COOLDOWN.total_seconds()),
+    }
+
+
+def _send_signup_code(request, row, code):
+    try:
+        otp.send_code_email(row, code, name=row.payload["username"])
+    except Exception:
+        logger.exception("Could not send a sign-up code")
+        otp.finish(request, row)  # let them retry straight away
+        raise ApiError("We couldn't send the confirmation email right now. Please try again in a few minutes.", 503) from None
+
+
+def _send_reset_code(row, code):
+    user_id = row.payload.get("user")
+    if user_id is None:  # no such account: nothing is sent, but the response is the same
+        return
+    user = get_user_model()._default_manager.select_related("profile").filter(pk=user_id).first()
+    try:
+        otp.send_code_email(row, code, name=user.profile.name if user else "")
+    except Exception:
+        logger.exception("Could not send a password reset code")
+
+
+@ratelimit("email_code")
+@endpoint("POST")
+def resend_code(request):
+    """Send a fresh code for the sign-up or password reset this browser started."""
+    purpose = text(request.data, "purpose", 20)
+    if purpose not in Purpose.values:
+        raise ApiError("Unknown code type.", 400)
+    row = otp.pending(request, purpose)
+    if row is None:
+        raise ApiError("This request has expired. Please start again.", 400)
+    row, code = _issue(request, purpose, row.email, row.payload)
+    if purpose == Purpose.SIGNUP:
+        _send_signup_code(request, row, code)
+        return _code_sent(row, f"We sent a new code to {row.email}.")
+    _send_reset_code(row, code)
+    return _code_sent(row, f"If an account uses {row.email}, we sent it a new code.")
+
+
+# ------------------------------------------------------------------ sign-up
 @ratelimit("signup")
 @endpoint("POST")
 def signup(request):
+    """Step 1 of 2: validate the details and email a code. No account exists until the code is entered."""
     if request.user.is_authenticated:
         raise ApiError("You are already signed in.", 400)
     form = SignUpForm(
@@ -96,56 +168,81 @@ def signup(request):
     )
     if not form.is_valid():
         form_error(form)
-    user = form.save()
+    payload = {"username": form.cleaned_data["username"], "password": make_password(form.cleaned_data["password1"])}
+    row, code = _issue(request, Purpose.SIGNUP, form.cleaned_data["email"], payload)
+    _send_signup_code(request, row, code)
+    return _code_sent(row, f"We sent a {otp.CODE_LENGTH}-digit code to {row.email}.")
+
+
+@ratelimit("email_code")
+@endpoint("POST")
+def signup_verify(request):
+    """Step 2 of 2: check the code, then create the account (email already confirmed) and log in."""
+    if request.user.is_authenticated:
+        raise ApiError("You are already signed in.", 400)
+    row = _verify(request, Purpose.SIGNUP)
+    User = get_user_model()
+    username = row.payload["username"]
+    taken = "That username or email address was registered while you were confirming. Please sign up again."
+    if User.objects.filter(username__iexact=username).exists() or User.objects.filter(email__iexact=row.email).exists():
+        otp.finish(request, row)
+        raise ApiError(taken, 409)
+    try:
+        with transaction.atomic():
+            user = User(username=username, email=row.email, password=row.payload["password"])
+            user.save()
+    except IntegrityError:
+        otp.finish(request, row)
+        raise ApiError(taken, 409) from None
+    user.profile.verified_email = row.email
+    user.profile.save(update_fields=["verified_email"])
+    otp.finish(request, row)
     login(request, user, backend="django.contrib.auth.backends.ModelBackend")
     logger.info("New account registered: %s", user.pk)
-    send_verification_email(user, request)
     return {
         **session_payload(request, drain_messages=False),
         "next": safe_next(request, request.data.get("next"), reverse("accounts:profile")),
-        "message": f"Welcome to VenuePulse! We sent a confirmation link to {user.email}.",
+        "message": "Welcome to VenuePulse! Your email address is confirmed.",
     }
 
 
+# ------------------------------------------------------------------ password reset
 @ratelimit("password_reset")
 @endpoint("POST")
 def password_reset(request):
-    form = PasswordResetForm(data={"email": text(request.data, "email", 254)})
-    if not form.is_valid():
-        form_error(form)
-    form.save(
-        request=request,
-        use_https=request.is_secure(),
-        email_template_name="accounts/email/password_reset.txt",
-        subject_template_name="accounts/email/password_reset_subject.txt",
-    )
-    # Same answer whether or not the address exists, so accounts cannot be enumerated.
-    return {"ok": True}
-
-
-def reset_user(uidb64):
+    """Step 1 of 2: email a reset code. The answer is the same whether or not an account uses the address."""
+    email = text(request.data, "email", 254)
     try:
-        uid = force_str(urlsafe_base64_decode(uidb64))
-        return get_user_model()._default_manager.get(pk=uid)
-    except (TypeError, ValueError, OverflowError, get_user_model().DoesNotExist):
-        return None
+        validate_email(email)
+    except ValidationError:
+        raise ApiError("Please correct the highlighted fields.", 400, {"email": ["Enter a valid email address."]}) from None
+    user = next(iter(PasswordResetForm().get_users(email)), None)  # active accounts with a usable password
+    row, code = _issue(request, Purpose.PASSWORD_RESET, email, {"user": user.pk if user else None})
+    _send_reset_code(row, code)
+    return _code_sent(row, f"If an account uses {row.email}, we sent it a {otp.CODE_LENGTH}-digit code.")
 
 
+@ratelimit("email_code")
 @endpoint("POST")
 def password_reset_confirm(request):
-    """Set a new password; the reset token was stashed in the session by the link's landing view."""
-    user = reset_user(text(request.data, "uid", 64))
-    token = request.session.get(RESET_SESSION_KEY)
-    if user is None or not token or not default_token_generator.check_token(user, token):
-        raise ApiError("This password reset link is invalid or has already been used. Please request a new one.", 400)
+    """Step 2 of 2: check the code and set the new password. Changing it signs out the account's other sessions."""
+    row = _verify(request, Purpose.PASSWORD_RESET)
+    user_id = row.payload.get("user")
+    user = get_user_model()._default_manager.filter(pk=user_id, is_active=True).first() if user_id else None
+    if user is None or user.email.lower() != row.email:
+        otp.finish(request, row)
+        message = "This code is no longer valid. Request a new one."
+        raise ApiError(message, 400, {"code": [message]})
     form = SetPasswordForm(user, data={"new_password1": request.data.get("new_password1", ""), "new_password2": request.data.get("new_password2", "")})
     if not form.is_valid():
-        form_error(form)
+        form_error(form)  # the code stays valid, so they can fix the password and resubmit
     form.save()
-    del request.session[RESET_SESSION_KEY]
+    otp.finish(request, row)
+    logger.info("Password reset for user %s", user.pk)
     return {"ok": True}
 
 
+# ------------------------------------------------------------------ signed in
 @endpoint("POST", login=True)
 def password_change(request):
     form = PasswordChangeForm(

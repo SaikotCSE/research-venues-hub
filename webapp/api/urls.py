@@ -12,6 +12,8 @@ urlpatterns = [
     path("auth/login/", session.login_view, name="login"),
     path("auth/logout/", session.logout_view, name="logout"),
     path("auth/signup/", session.signup, name="signup"),
+    path("auth/signup/verify/", session.signup_verify, name="signup_verify"),
+    path("auth/code/resend/", session.resend_code, name="resend_code"),
     path("auth/password-reset/", session.password_reset, name="password_reset"),
     path("auth/password-reset/confirm/", session.password_reset_confirm, name="password_reset_confirm"),
     path("auth/password-change/", session.password_change, name="password_change"),
@@ -39,7 +41,6 @@ urlpatterns = [
     # signed-in user
     path("me/dashboard/", account.dashboard, name="dashboard"),
     path("me/profile/", account.profile, name="profile"),
-    path("me/tokens/<str:which>/", account.regenerate_token, name="regenerate_token"),
     path("me/timezone/", account.set_timezone, name="set_timezone"),
     path("me/email/", account.change_email, name="change_email"),
     path("me/delete/", account.delete_account, name="delete_account"),

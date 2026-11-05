@@ -1,6 +1,8 @@
 import json
+import re
 from datetime import timedelta
 from io import StringIO
+from unittest import mock
 
 from django.contrib.auth.models import User
 from django.core import mail
@@ -9,7 +11,7 @@ from django.test import Client, TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from accounts.models import Notification, SavedSearch, VenueList
+from accounts.models import EmailCode, Notification, SavedSearch, VenueList
 from venues.models import DeadlineCycle, Venue, VenueBookmark
 
 APP = "/api/app"
@@ -33,6 +35,16 @@ class AccountTestBase(TestCase):
         client = client or self.client
         return getattr(client, method)(APP + path, data=json.dumps(body or {}), content_type="application/json")
 
+    @staticmethod
+    def last_code():
+        """The one-time code in the most recent email."""
+        return re.search(r"^ +(\d{6})$", mail.outbox[-1].body, re.M).group(1)
+
+    def signup_and_verify(self, client=None, **data):
+        r = self.api("post", "/auth/signup/", data, client=client)
+        self.assertEqual(r.status_code, 200, r.content)
+        return self.api("post", "/auth/signup/verify/", {"code": self.last_code(), "next": data.get("next")}, client=client)
+
 
 class AuthTests(AccountTestBase):
     def test_profile_autocreated(self):
@@ -46,10 +58,21 @@ class AuthTests(AccountTestBase):
     def test_signup_flow(self):
         r = self.signup()
         self.assertEqual(r.status_code, 200)
-        data = r.json()
+        self.assertEqual({k: r.json()[k] for k in ("email", "expires_in", "resend_in")}, {"email": "bob@example.com", "expires_in": 600, "resend_in": 60})
+        self.assertFalse(User.objects.filter(username="bob").exists(), "no account until the code is confirmed")
+        self.assertFalse(self.client.get(f"{APP}/session/").json()["authenticated"])
+        self.assertEqual(mail.outbox[0].to, ["bob@example.com"])
+        code = self.last_code()
+        self.assertTrue(mail.outbox[0].subject.startswith(code))
+
+        data = self.api("post", "/auth/signup/verify/", {"code": code}).json()
         self.assertTrue(data["authenticated"])
         self.assertEqual((data["user"]["username"], data["next"]), ("bob", reverse("accounts:profile")))
-        self.assertTrue(User.objects.get(username="bob").profile)
+        self.assertTrue(data["user"]["email_verified"], "the code confirmed the address")
+        self.assertTrue(User.objects.get(username="bob").check_password("S3cure-pass-987"))
+        self.assertFalse(EmailCode.objects.exists(), "used codes are deleted")
+        self.api("post", "/auth/logout/")
+        self.assertEqual(self.api("post", "/auth/signup/verify/", {"code": code}).status_code, 400, "a code works once")
 
     def test_signup_validation_errors_are_per_field(self):
         r = self.signup(email="ALICE@example.com", password2="mismatch")
@@ -83,6 +106,12 @@ class AuthTests(AccountTestBase):
     def test_signed_in_users_skip_login_page(self):
         self.login()
         self.assertRedirects(self.client.get(reverse("accounts:login")), reverse("accounts:dashboard"), fetch_redirect_response=False)
+
+    def test_signup_keeps_anonymous_stars(self):
+        venue = Venue.objects.first()
+        self.client.post(f"{APP}/venues/{venue.slug}/star/", content_type="application/json")
+        self.signup_and_verify(username="erin", email="erin@example.com", password1="S3cure-pass-987", password2="S3cure-pass-987")
+        self.assertTrue(VenueBookmark.objects.filter(user__username="erin", venue=venue, is_starred=True).exists())
 
     def test_anonymous_bookmarks_merge_on_login(self):
         c = Client()
@@ -147,13 +176,55 @@ class AuthTests(AccountTestBase):
         self.assertEqual(r.status_code, 400)
         self.assertIn("comma-separated day counts", r.json()["fields"]["reminder_days"][0])
 
-    def test_token_regeneration(self):
+    def test_tokens_and_feed_links_never_reach_the_browser(self):
         self.login()
-        old = self.user.profile.api_token
-        r = self.api("post", "/me/tokens/api/")
-        self.assertNotEqual(r.json()["api_token"], old)
-        self.assertNotEqual(User.objects.get(pk=self.user.pk).profile.api_token, old)
-        self.assertEqual(self.api("post", "/me/tokens/bogus/").status_code, 404)
+        p = self.user.profile
+        for body in (self.client.get(f"{APP}/me/profile/").content, self.client.get(f"{APP}/me/dashboard/").content):
+            for secret in (p.api_token, p.calendar_token, "api_token", "calendar_url"):
+                self.assertNotIn(secret.encode(), body)
+        self.assertEqual(self.api("post", "/me/tokens/api/").status_code, 404, "no regenerate endpoint")
+
+    def test_api_tokens_are_stored_hashed(self):
+        from accounts.models import hash_token
+
+        p = self.user.profile
+        self.assertEqual(len(p.api_token), 64, "new profiles start with a hash of a token nobody knows")
+        token = p.issue_api_token()
+        p.refresh_from_db()
+        self.assertEqual(p.api_token, hash_token(token))
+        self.assertNotIn(token, p.api_token)
+        self.assertEqual(self.client.get(reverse("venues:api_me"), HTTP_AUTHORIZATION=f"Bearer {token}").status_code, 200)
+        self.assertEqual(self.client.get(reverse("venues:api_me"), HTTP_AUTHORIZATION=f"Bearer {p.api_token}").status_code, 401, "the hash is not a token")
+        self.assertEqual(self.client.get(reverse("venues:api_me"), HTTP_AUTHORIZATION="Bearer ").status_code, 401)
+
+    def test_migration_hashes_existing_plain_tokens(self):
+        import importlib
+
+        from django.apps import apps
+
+        from accounts.models import UserProfile, hash_token
+
+        migration = importlib.import_module("accounts.migrations.0006_hash_api_tokens")
+        UserProfile.objects.filter(pk=self.user.profile.pk).update(api_token="old-plain-token-copied-by-a-user")
+        migration.hash_existing_tokens(apps, None)
+        migration.hash_existing_tokens(apps, None)  # running twice doesn't hash twice
+        stored = UserProfile.objects.get(pk=self.user.profile.pk).api_token
+        self.assertEqual(stored, hash_token("old-plain-token-copied-by-a-user"))
+        r = self.client.get(reverse("venues:api_me"), HTTP_AUTHORIZATION="Bearer old-plain-token-copied-by-a-user")
+        self.assertEqual(r.status_code, 200, "a token copied before the change keeps working")
+
+    def test_issue_api_token_command(self):
+        out, err = StringIO(), StringIO()
+        call_command("issue_api_token", "alice", stdout=out, stderr=err)
+        token = out.getvalue().strip()
+        self.assertEqual(self.client.get(reverse("venues:api_me"), HTTP_AUTHORIZATION=f"Bearer {token}").json()["username"], "alice")
+        self.assertIn("can't be shown again", err.getvalue())
+        call_command("issue_api_token", "alice", stdout=StringIO(), stderr=StringIO())
+        self.assertEqual(self.client.get(reverse("venues:api_me"), HTTP_AUTHORIZATION=f"Bearer {token}").status_code, 401, "the old token is revoked")
+        from django.core.management.base import CommandError
+
+        with self.assertRaises(CommandError):
+            call_command("issue_api_token", "nobody", stdout=StringIO(), stderr=StringIO())
 
 
 class ListsAndSearchTests(AccountTestBase):
@@ -270,34 +341,44 @@ class ReminderTests(AccountTestBase):
 
 
 class AccountManagementTests(AccountTestBase):
+    def reset_confirm(self, code, password="Brand-new-pass-77", confirm=None):
+        return self.api("post", "/auth/password-reset/confirm/", {"code": code, "new_password1": password, "new_password2": confirm or password})
+
     def test_password_reset_end_to_end(self):
+        other = Client()  # a session that was signed in before the reset
+        other.force_login(self.user)
         r = self.api("post", "/auth/password-reset/", {"email": "ALICE@example.com"})
-        self.assertEqual(r.json(), {"ok": True})
+        self.assertEqual(r.json()["email"], "alice@example.com")
         self.assertEqual(len(mail.outbox), 1)
-        self.assertIn("Reset", mail.outbox[0].subject)
-        link = next(line for line in mail.outbox[0].body.splitlines() if "/accounts/password/reset/" in line).strip()
-        path = link.split("testserver", 1)[1]
-        uid = path.rstrip("/").split("/")[-2]
-        r = self.client.get(path)  # the token moves into the session, out of the address bar
-        self.assertRedirects(r, reverse("accounts:password_reset_confirm", args=[uid, "set-password"]), fetch_redirect_response=False)
-        page = self.client.get(r["Location"])
-        self.assertEqual(boot_of(page)["extra"]["reset"], {"valid": True, "uid": uid})
-        bad = self.api("post", "/auth/password-reset/confirm/", {"uid": uid, "new_password1": "short", "new_password2": "short"})
-        self.assertEqual(bad.status_code, 400)
-        ok = self.api("post", "/auth/password-reset/confirm/", {"uid": uid, "new_password1": "Brand-new-pass-77", "new_password2": "Brand-new-pass-77"})
-        self.assertEqual(ok.json(), {"ok": True})
+        self.assertIn("password reset code", mail.outbox[0].subject)
+        code = self.last_code()
+        self.assertEqual(self.reset_confirm(code, "short").status_code, 400)  # a weak password doesn't use up the code
+        self.assertEqual(self.reset_confirm(code).json(), {"ok": True})
         self.assertTrue(self.client.login(username="alice", password="Brand-new-pass-77"))
-        # the link works once
-        again = self.api("post", "/auth/password-reset/confirm/", {"uid": uid, "new_password1": "Other-pass-777", "new_password2": "Other-pass-777"})
-        self.assertEqual(again.status_code, 400)
+        self.assertEqual(other.get(f"{APP}/me/dashboard/").status_code, 401, "other sessions are signed out")
+        self.assertEqual(self.reset_confirm(code, "Other-pass-777").status_code, 400, "a code works once")
 
     def test_password_reset_unknown_email_is_silent(self):
-        self.assertEqual(self.api("post", "/auth/password-reset/", {"email": "nobody@example.com"}).json(), {"ok": True})
+        known = self.api("post", "/auth/password-reset/", {"email": "alice@example.com"}, client=Client()).json()
+        unknown = self.api("post", "/auth/password-reset/", {"email": "nobody@example.com"}).json()
+        self.assertEqual(unknown.keys(), known.keys())
+        self.assertEqual(unknown["message"], known["message"].replace("alice@", "nobody@"))
+        self.assertEqual(len(mail.outbox), 1, "only the real account gets an email")
+        r = self.reset_confirm("123456")
+        self.assertEqual(r.status_code, 400)
+        self.assertIn("incorrect", r.json()["fields"]["code"][0])
+        again = self.api("post", "/auth/password-reset/", {"email": "nobody@example.com"})
+        self.assertEqual(again.status_code, 429, "the resend cooldown applies whether or not the account exists")
+
+    def test_password_reset_ignores_inactive_accounts(self):
+        User.objects.filter(pk=self.user.pk).update(is_active=False)
+        self.assertEqual(self.api("post", "/auth/password-reset/", {"email": "alice@example.com"}).status_code, 200)
         self.assertEqual(len(mail.outbox), 0)
 
-    def test_invalid_reset_link(self):
-        r = self.client.get(reverse("accounts:password_reset_confirm", args=["MQ", "bad-token"]))
-        self.assertEqual(boot_of(r)["extra"]["reset"], {"valid": False, "uid": "MQ"})
+    def test_password_reset_needs_a_valid_email(self):
+        r = self.api("post", "/auth/password-reset/", {"email": "not-an-email"})
+        self.assertEqual(r.status_code, 400)
+        self.assertIn("email", r.json()["fields"])
 
     def test_password_change(self):
         self.login()
@@ -354,10 +435,10 @@ class AccountManagementTests(AccountTestBase):
 
     def test_auth_next_is_safe(self):
         data = {"username": "carol", "email": "carol@example.com", "password1": "S3cure-pass-987", "password2": "S3cure-pass-987"}
-        r = self.api("post", "/auth/signup/", {**data, "next": "https://evil.example.com/"})
+        r = self.signup_and_verify(**data, next="https://evil.example.com/")
         self.assertEqual(r.json()["next"], reverse("accounts:profile"))
         self.api("post", "/auth/logout/")
-        r = self.api("post", "/auth/signup/", {**data, "username": "dave", "email": "dave@example.com", "next": "/targets/"})
+        r = self.signup_and_verify(**{**data, "username": "dave", "email": "dave@example.com"}, next="/targets/")
         self.assertEqual(r.json()["next"], "/targets/")
         self.api("post", "/auth/logout/")
         r = self.api("post", "/auth/login/", {"username": "dave", "password": "S3cure-pass-987", "next": "//evil.example.com"})
@@ -381,13 +462,15 @@ class EmailVerificationTests(AccountTestBase):
     def link_from(self, message):
         return next(line for line in message.body.splitlines() if "/accounts/verify/" in line).strip().split("testserver", 1)[1]
 
-    def test_signup_sends_verification_and_link_confirms(self):
-        self.api("post", "/auth/signup/", {"username": "newbie", "email": "newbie@example.com", "password1": "S3cure-pass-987", "password2": "S3cure-pass-987"})
-        self.assertEqual(len(mail.outbox), 1)
-        self.assertIn("Confirm your email", mail.outbox[0].subject)
-        user = User.objects.get(username="newbie")
-        self.assertFalse(user.profile.email_verified)
+    def test_verification_link_confirms(self):
+        """Accounts created before sign-up codes (and changed addresses) still confirm through a link."""
+        from accounts.verification import send_verification_email
+
+        user = self.user
+        self.login()
         self.assertFalse(self.client.get(f"{APP}/session/").json()["user"]["email_verified"])
+        send_verification_email(user)
+        self.assertIn("Confirm your email", mail.outbox[0].subject)
         r = self.client.get(self.link_from(mail.outbox[0]))
         self.assertRedirects(r, reverse("accounts:dashboard"), fetch_redirect_response=False)
         messages = boot_of(self.client.get(r["Location"]))["session"]["messages"]  # flash message shown as a toast
@@ -439,3 +522,134 @@ class EmailVerificationTests(AccountTestBase):
         call_command("send_reminders", stdout=StringIO())
         self.assertEqual(self.user.notifications.count(), 1)
         self.assertEqual(len(mail.outbox), 0)
+
+
+class EmailCodeTests(AccountTestBase):
+    """The one-time codes behind sign-up and password reset (accounts/otp.py)."""
+
+    DATA = {"username": "bob", "email": "bob@example.com", "password1": "S3cure-pass-987", "password2": "S3cure-pass-987"}
+
+    def start(self, client=None, **overrides):
+        r = self.api("post", "/auth/signup/", {**self.DATA, **overrides}, client=client)
+        self.assertEqual(r.status_code, 200, r.content)
+        return self.last_code()
+
+    def verify(self, code, client=None):
+        return self.api("post", "/auth/signup/verify/", {"code": code}, client=client)
+
+    def wrong(self, code):
+        return f"{(int(code) + 1) % 1_000_000:06d}"
+
+    def age(self, **delta):
+        """Pretend the current code was sent (and expires) ``delta`` earlier."""
+        row = EmailCode.objects.get()
+        shift = timedelta(**delta)
+        EmailCode.objects.filter(pk=row.pk).update(
+            sent_at=row.sent_at - shift, expires_at=row.expires_at - shift, window_started_at=row.window_started_at - shift
+        )
+
+    def test_only_a_hash_is_stored(self):
+        code = self.start()
+        row = EmailCode.objects.get()
+        self.assertEqual((row.purpose, row.email, row.attempts, row.sends), ("signup", "bob@example.com", 0, 1))
+        self.assertNotIn(code, json.dumps([row.code_hash, row.flow, row.payload]))
+        self.assertNotIn("S3cure-pass-987", json.dumps(row.payload), "the password is stored hashed")
+
+    def test_wrong_codes_are_counted_and_lock_the_code(self):
+        code = self.start()
+        r = self.verify(self.wrong(code))
+        self.assertEqual(r.status_code, 400)
+        self.assertEqual(r.json()["fields"]["code"], ["That code is incorrect. 4 attempts left."])
+        for _ in range(4):
+            self.verify(self.wrong(code))
+        r = self.verify(code)
+        self.assertIn("Too many incorrect attempts", r.json()["error"])
+        self.assertFalse(User.objects.filter(username="bob").exists())
+
+    def test_malformed_codes_do_not_use_an_attempt(self):
+        self.start()
+        for bad in ("", "12345", "abcdef", "1234567", "١٢٣٤٥٦"):
+            r = self.verify(bad)
+            self.assertEqual(r.json()["fields"]["code"], ["Enter the 6-digit code from the email."], bad)
+        self.assertEqual(EmailCode.objects.get().attempts, 0)
+
+    def test_spaces_and_dashes_in_the_code_are_ignored(self):
+        code = self.start()
+        self.assertTrue(self.verify(f" {code[:3]}-{code[3:]} ").json()["authenticated"])
+
+    def test_codes_expire(self):
+        code = self.start()
+        self.age(minutes=11)
+        self.assertIn("expired", self.verify(code).json()["error"])
+
+    def test_code_only_works_in_the_browser_that_asked(self):
+        code = self.start()
+        self.assertIn("expired", self.verify(code, client=Client()).json()["error"])
+        self.assertTrue(self.verify(code).json()["authenticated"])
+
+    def test_resend_cooldown_and_new_code(self):
+        first = self.start()
+        r = self.api("post", "/auth/code/resend/", {"purpose": "signup"})
+        self.assertEqual(r.status_code, 429)
+        self.assertIn("Please wait", r.json()["error"])
+        self.age(seconds=61)
+        r = self.api("post", "/auth/code/resend/", {"purpose": "signup"})
+        self.assertEqual(r.status_code, 200)
+        second = self.last_code()
+        self.assertEqual(len(mail.outbox), 2)
+        if second != first:  # (one in a million they match)
+            self.assertIn("incorrect", self.verify(first).json()["error"], "the old code stops working")
+        self.assertTrue(self.verify(second).json()["authenticated"])
+
+    def test_sends_per_address_are_capped(self):
+        self.start()
+        for _ in range(4):
+            self.age(seconds=61)
+            self.assertEqual(self.api("post", "/auth/code/resend/", {"purpose": "signup"}).status_code, 200)
+        self.age(seconds=61)
+        r = self.api("post", "/auth/code/resend/", {"purpose": "signup"})
+        self.assertEqual(r.status_code, 429)
+        self.assertIn("Too many codes", r.json()["error"])
+        self.age(hours=1)
+        self.assertEqual(self.api("post", "/auth/code/resend/", {"purpose": "signup"}).status_code, 200, "the window resets")
+
+    def test_another_browser_signing_up_with_the_same_address_waits_too(self):
+        self.start()
+        r = self.api("post", "/auth/signup/", self.DATA, client=Client())
+        self.assertEqual(r.status_code, 429)
+
+    def test_resend_without_a_pending_code(self):
+        self.assertEqual(self.api("post", "/auth/code/resend/", {"purpose": "signup"}).status_code, 400)
+        self.assertEqual(self.api("post", "/auth/code/resend/", {"purpose": "nope"}).status_code, 400)
+
+    def test_username_taken_while_confirming(self):
+        code = self.start()
+        User.objects.create_user("Bob", "someone@example.com", "pw-12345-xyz")
+        r = self.verify(code)
+        self.assertEqual(r.status_code, 409)
+        self.assertFalse(EmailCode.objects.exists())
+
+    def test_email_failure_reports_an_error_and_allows_a_retry(self):
+        with mock.patch("accounts.otp.send_mail", side_effect=OSError("smtp down")):
+            r = self.api("post", "/auth/signup/", self.DATA)
+        self.assertEqual(r.status_code, 503)
+        self.assertFalse(EmailCode.objects.exists())
+        self.start()  # no cooldown after a failed send
+
+    def test_signed_in_users_cannot_sign_up(self):
+        self.login()
+        self.assertEqual(self.api("post", "/auth/signup/", self.DATA).status_code, 400)
+        self.assertEqual(self.verify("123456").status_code, 400)
+
+    def test_reset_code_is_void_if_the_email_changed(self):
+        self.api("post", "/auth/password-reset/", {"email": "alice@example.com"})
+        code = self.last_code()
+        User.objects.filter(pk=self.user.pk).update(email="new@example.com")
+        r = self.api("post", "/auth/password-reset/confirm/", {"code": code, "new_password1": "Brand-new-pass-77", "new_password2": "Brand-new-pass-77"})
+        self.assertIn("no longer valid", r.json()["error"])
+        self.assertTrue(User.objects.get(pk=self.user.pk).check_password("pw-12345-xyz"))
+
+    def test_signup_and_reset_codes_are_separate(self):
+        self.api("post", "/auth/password-reset/", {"email": "alice@example.com"})
+        code = self.last_code()
+        self.assertIn("expired", self.verify(code).json()["error"])

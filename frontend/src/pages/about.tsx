@@ -59,7 +59,7 @@ const FAQS: { q: string; a: React.ReactNode }[] = [
   },
   {
     q: "How do reminders work?",
-    a: "Star a venue (or track a submission) and, once your email is confirmed, VenuePulse reminds you before each abstract and paper deadline — by default 14, 7 and 1 days before. You can change the offsets, switch emails off, or subscribe to a private calendar feed instead from your profile. If a tracked deadline moves, you get a notification too.",
+    a: "Star a venue (or track a submission) and, once your email is confirmed, VenuePulse reminds you before each abstract and paper deadline — by default 14, 7 and 1 days before. You can change the offsets or switch emails off on your profile. If a tracked deadline moves, you get a notification too.",
   },
   {
     q: "Can I use VenuePulse without an account?",

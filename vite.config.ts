@@ -38,7 +38,7 @@ export default defineConfig(({ command }) => ({
             return undefined;
           }
           if (/frontend[\\/]src[\\/](lib|hooks|providers|components)[\\/]/.test(id) && !/command-palette/.test(id)) return "app";
-          if (/frontend[\\/]src[\\/]pages[\\/](not-found|auth[\\/](auth-layout|password-input))\.tsx$/.test(id)) return "app";
+          if (/frontend[\\/]src[\\/]pages[\\/](not-found|auth[\\/](auth-layout|password-input|code-step))\.tsx$/.test(id)) return "app";
           return undefined;
         },
       },

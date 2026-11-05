@@ -1,4 +1,5 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync, statSync } from "node:fs";
+import { join } from "node:path";
 import { createRequire } from "node:module";
 
 import { type Page, expect } from "@playwright/test";
@@ -22,6 +23,20 @@ export async function login(page: Page, username = "demo", password = "demo-pass
   await page.getByLabel("Password", { exact: true }).fill(password);
   await page.getByRole("button", { name: "Log in" }).click();
   await expect(page).toHaveURL(/\/accounts\/$/);
+}
+
+/** The one-time code from the newest email sent to `address` (the e2e server writes emails to e2e-mail/). */
+export function latestCode(address: string) {
+  const dir = "e2e-mail";
+  const files = readdirSync(dir)
+    .map((name) => join(dir, name))
+    .sort((a, b) => statSync(b).mtimeMs - statSync(a).mtimeMs);
+  for (const file of files) {
+    const text = readFileSync(file, "utf8");
+    const code = /^Subject: (\d{6}) is your VenuePulse/m.exec(text)?.[1];
+    if (code && new RegExp(`^To: ${address}$`, "mi").test(text)) return code;
+  }
+  throw new Error(`No code emailed to ${address}`);
 }
 
 /** Run axe-core and return serious/critical violations (WCAG 2.1 A/AA). */

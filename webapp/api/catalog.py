@@ -219,8 +219,6 @@ def venue_payload(request, venue):
         "urls": {
             "page": page_url,
             "ics": reverse("venues:ics", args=[venue.slug]) if has_upcoming else None,
-            "embed": site_base_url(request) + reverse("venues:embed", args=[venue.slug]),
-            "api": reverse("venues:api_venue_detail", args=[venue.slug]),
         },
         "me": me,
     }

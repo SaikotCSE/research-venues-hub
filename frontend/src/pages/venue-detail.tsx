@@ -5,12 +5,10 @@ import {
   CalendarPlus,
   ChevronDown,
   ChevronRight,
-  Code2,
   FileCode2,
   Globe,
   History,
   KanbanSquare,
-  Link2,
   ListChecks,
   MapPin,
   Send,
@@ -106,7 +104,6 @@ export function VenueDetailPage() {
   const nd = v.next_deadline;
   const progress = deadlineProgress(v, now);
   const location = [v.city, v.country].filter(Boolean).join(", ");
-  const embedCode = `<iframe src="${v.urls.embed}" width="320" height="150" style="border:0;border-radius:12px" title="${v.acronym} deadline countdown" loading="lazy"></iframe>`;
 
   return (
     <div className="mx-auto max-w-screen-2xl px-4 pb-8 pt-6 sm:px-6 lg:px-8">
@@ -478,26 +475,6 @@ export function VenueDetailPage() {
 
           <NotesCard key={v.slug} slug={v.slug} initial={v.me.note} />
           {session.authenticated && v.me.lists && <ListsCard venue={v} />}
-
-          <Card>
-            <CardHeader>
-              <CardTitle as="h2">
-                <Code2 className="size-4 text-muted-foreground" aria-hidden="true" /> Embed & API
-              </CardTitle>
-              <CardDescription>Show a live countdown on your lab website.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <CodeBlock code={embedCode} label="HTML" wrap />
-              <div className="flex flex-wrap gap-2 text-xs">
-                <a href={v.urls.embed} target="_blank" rel="noopener noreferrer" className="link inline-flex items-center gap-1">
-                  <Link2 className="size-3" aria-hidden="true" /> Preview widget
-                </a>
-                <a href={v.urls.api} className="link inline-flex items-center gap-1">
-                  <Code2 className="size-3" aria-hidden="true" /> JSON
-                </a>
-              </div>
-            </CardContent>
-          </Card>
         </aside>
       </div>
 

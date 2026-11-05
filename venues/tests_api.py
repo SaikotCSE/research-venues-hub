@@ -77,9 +77,10 @@ class PublicApiTests(TestCase):
         r = self.client.get(reverse("venues:openapi"))
         schema = r.json()
         self.assertEqual(schema["openapi"], "3.1.0")
-        for path in ("/api/venues/", "/api/venues/{slug}/", "/api/v1/me/targets/", "/api/v1/me/targets/{slug}/"):
+        for path in ("/api/venues/", "/api/venues/{slug}/"):
             self.assertIn(path, schema["paths"])
-        self.assertIn("bearerAuth", schema["components"]["securitySchemes"])
+        self.assertFalse([p for p in schema["paths"] if p.startswith("/api/v1/me")], "token endpoints are not advertised")
+        self.assertNotIn("securitySchemes", schema["components"])
         self.assertIn("next", schema["components"]["schemas"]["VenuePage"]["properties"])
         self.assertEqual(schema["servers"][0]["url"], "http://testserver")
 
@@ -99,16 +100,17 @@ class TokenApiErrorTests(TestCase):
 
     def test_inactive_user_token_rejected(self):
         u = User.objects.create_user("x", "x@example.com", "pw-12345-xyz", is_active=False)
-        r = self.client.get(reverse("venues:api_me"), HTTP_AUTHORIZATION=f"Bearer {u.profile.api_token}")
+        r = self.client.get(reverse("venues:api_me"), HTTP_AUTHORIZATION=f"Bearer {u.profile.issue_api_token()}")
         self.assertEqual(r.status_code, 401)
 
     def test_token_endpoints_are_not_cors_enabled(self):
         u = User.objects.create_user("y", "y@example.com", "pw-12345-xyz")
-        r = self.client.get(reverse("venues:api_me"), HTTP_AUTHORIZATION=f"Bearer {u.profile.api_token}")
+        token = u.profile.issue_api_token()
+        r = self.client.get(reverse("venues:api_me"), HTTP_AUTHORIZATION=f"Bearer {token}")
         self.assertEqual(r.status_code, 200)
         self.assertNotIn("Access-Control-Allow-Origin", r)
         bad = self.client.post(
-            reverse("venues:api_me_targets"), json.dumps({"slug": "nope"}), content_type="application/json", HTTP_AUTHORIZATION=f"Bearer {u.profile.api_token}"
+            reverse("venues:api_me_targets"), json.dumps({"slug": "nope"}), content_type="application/json", HTTP_AUTHORIZATION=f"Bearer {token}"
         )
         self.assertEqual(bad.status_code, 404)
         self.assertIn("error", bad.json())

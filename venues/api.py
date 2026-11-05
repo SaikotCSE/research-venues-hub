@@ -173,12 +173,13 @@ def suggest(request):
 
 # ------------------------------------------------------------------ token-authenticated endpoints
 def _token_user(request):
-    from accounts.models import UserProfile
+    from accounts.models import UserProfile, hash_token
 
     header = request.headers.get("Authorization", "")
-    if not header.startswith("Bearer "):
+    raw = header[7:].strip() if header.startswith("Bearer ") else ""
+    if not raw:
         return None
-    profile = UserProfile.objects.select_related("user").filter(api_token=header[7:].strip()).first()
+    profile = UserProfile.objects.select_related("user").filter(api_token=hash_token(raw)).first()
     return profile.user if profile and profile.user.is_active else None
 
 

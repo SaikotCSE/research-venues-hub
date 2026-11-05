@@ -4,7 +4,27 @@ All notable changes to this project are documented here. Dates are in UTC.
 
 ## [Unreleased]
 
+### Security
+- **Sign-up requires email verification.** Creating an account emails a 6-digit code, and the account is created only
+  after the code is entered (its address then counts as confirmed). Codes expire after 10 minutes, allow 5 attempts,
+  work only in the requesting browser and are stored as HMACs.
+- **Password reset uses an emailed code** instead of a link: enter the code and the new password on the same page.
+  The response doesn't reveal whether an account exists. Old reset links no longer work.
+- **Personal API tokens are stored as SHA-256 hashes and never shown.** The API token and the private calendar-feed
+  link are gone from the profile and dashboard, and the app's JSON no longer contains them. Tokens that were already
+  copied keep working (the migration hashes them in place). Admins issue tokens with
+  `manage.py issue_api_token <username>`; the token endpoints are no longer advertised in the API docs or OpenAPI.
+- Dependency upgrades clear every `npm audit` finding: React Router 7.18 (open-redirect fixes), Vite 7.3, Vitest 4.1,
+  PostCSS 8.5, ESLint 9.39, typescript-eslint 8.72 (with a patched `minimatch`).
+
+### Changed
+- "Profile & API" is now "Profile". Venue pages no longer show the "Embed & API" card; the widget URL
+  (`/embed/venue/<slug>/`) and the public API still work.
+
 ### Added
+- `BREVO_API_KEY`: send email through Brevo's HTTPS API, for hosts that block SMTP (Render's free plan).
+- `check --deploy` warns (`venuepulse.W003`) when email isn't configured; `build.sh` prints the deploy checks.
+- `.node-version` pins Node 22 for Render builds.
 - 23 venues for medical image segmentation, domain generalization and test-time adaptation: MLMI, SPIE Medical
   Imaging, EMBC, BIBM, BMVC and ICIP; MELBA, CMIG, CMPB, IEEE TBME, Medical Physics, AIIM, Radiology: AI, BSPC,
   JMI, IEEE TCSVT, IEEE TMM, CVIU, Pattern Recognition Letters, Neurocomputing, Knowledge-Based Systems, Expert

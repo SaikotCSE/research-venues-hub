@@ -30,7 +30,7 @@ ResearchSubfield ──< Venue >── DeadlineCycle (one per edition/year; UTC 
                       ├──< VenueBookmark (user or anonymous key; starred + private note)
                       ├──< VenueReview (one per user)          DeadlineCycle ──< DeadlineChange (audit)
                       └──< Submission >── Paper                DeadlineCycle ──< DeadlineSuggestion
-User ── UserProfile (timezone, interests, reminder offsets, digest opt-in, calendar & API tokens)
+User ── UserProfile (timezone, interests, reminder offsets, digest opt-in, calendar token, hashed API token)
 User ──< Notification · SavedSearch · VenueList (M2M Venue)
 ```
 
@@ -70,11 +70,16 @@ serialisation and as `Exists`/`Subquery` filters in `venues/filters.py` — and 
   `venues/<slug>/[star|note|review]`, `targets`, `compare`, `recommend`, `plan`, `radar`), the signed-in user
   (`me/*`, `lists/*`) and the tracker (`tracker/*`). Login, signup, password reset, email verification and community
   writes are rate limited.
-- The password-reset link stores its token in the session and redirects to a `set-password` URL (like Django's own
-  view), so the token never stays in the address bar or Referer.
+- Sign-up and password reset prove ownership of the address with a 6-digit emailed code (`accounts/otp.py`,
+  `EmailCode` model). Sign-up is `auth/signup/` (validate, email the code) then `auth/signup/verify/` (create the
+  account, already confirmed, and log in), so no account exists for an unconfirmed address. Reset is
+  `auth/password-reset/` then `auth/password-reset/confirm/` (code + new password); `auth/code/resend/` sends a new
+  code for either.
 
-The public, token-authenticated API (`/api/venues/`, `/api/v1/me/…`) is separate, versioned and documented with
-OpenAPI; the app API is internal and may change with the frontend.
+The public API (`/api/venues/` …) is separate, versioned and documented with OpenAPI; the app API is internal and may
+change with the frontend. The token API (`/api/v1/me/…`) is deliberately left out of the docs and schema: tokens are
+issued by an admin (`manage.py issue_api_token`) and never shown in the app. The app's JSON never contains the API
+token, the private calendar-feed URL or embed links.
 
 ## Frontend
 
@@ -120,9 +125,16 @@ frontend/src/
   data and JSON-LD are non-executable data blocks escaped like `json_script`. No inline event handlers, no CDNs.
 - Cache-backed fixed-window **rate limiting** for login, signup, password reset, email verification, community writes,
   the public API and the token API, with `X-RateLimit-*`/`Retry-After` headers.
-- Bearer API tokens and calendar tokens are random, revocable, and never sent to CORS-enabled endpoints.
-- Email verification uses Django's signing framework: tokens are bound to the user *and* the address, expire after three
-  days, and need no database table. Reminder and digest emails are sent only to confirmed addresses.
+- Bearer API tokens are random and stored only as SHA-256 hashes, so a database leak doesn't expose them; issuing a
+  new one revokes the old. Calendar-feed tokens are random. Neither is sent to the browser or to CORS-enabled
+  endpoints. (Existing calendar subscriptions keep working; the app no longer shows the feed URL.)
+- One-time codes: only an HMAC (keyed with `SECRET_KEY`) of each code is stored; a code expires after 10 minutes,
+  allows 5 wrong guesses and works only in the browser session that requested it. Each address can get a new code
+  every 60 s and at most 5 an hour. These counters live in the database, so they hold across gunicorn workers. The
+  password-reset response is the same whether or not an account uses the address.
+- Changing the email address of an existing account still confirms the new address through a signed link (Django's
+  signing framework: bound to the user *and* the address, valid three days, no table). Reminder and digest emails
+  are sent only to confirmed addresses.
 - The embeddable widget (`/embed/venue/<slug>/`) is the only frameable page: it keeps the same CSP but relaxes
   `frame-ancestors` and is exempt from `X-Frame-Options`.
 - CSV exports neutralise spreadsheet formula injection.

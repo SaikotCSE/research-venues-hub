@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { axe, login, watchConsole } from "./helpers";
+import { axe, latestCode, login, watchConsole } from "./helpers";
 
 test.describe("explore", () => {
   test("filters live in the URL and update results in place", async ({ page }) => {
@@ -76,6 +76,7 @@ test.describe("venue page", () => {
     const problems = watchConsole(page);
     await page.goto("/venue/cvpr/");
     await expect(page.getByRole("timer").first()).toBeVisible();
+    await expect(page.getByText("Embed & API")).toHaveCount(0);
 
     await page.getByRole("button", { name: "Save to targets" }).click();
     await expect(page.getByRole("button", { name: "Saved to targets" })).toHaveAttribute("aria-pressed", "true");
@@ -115,9 +116,12 @@ test.describe("accounts", () => {
     await page.getByLabel("Email").fill(`${user}@example.com`);
     await page.getByLabel("Password", { exact: true }).fill("a-Long-pass-123");
     await page.getByLabel("Confirm password").fill("a-Long-pass-123");
-    await page.getByRole("button", { name: "Create account" }).click();
+    await page.getByRole("button", { name: "Continue" }).click();
+    await expect(page.getByRole("heading", { name: "Check your email" })).toBeVisible();
+    await page.getByLabel("Confirmation code").fill(latestCode(`${user}@example.com`));
+    await page.getByRole("button", { name: "Verify and create account" }).click();
     await expect(page).toHaveURL(/\/accounts\/profile\/$/);
-    await expect(page.getByText("Confirm your email address")).toBeVisible();
+    await expect(page.getByText("Your email address is confirmed")).toBeVisible();
 
     await page.getByLabel("Research interests").fill("machine learning, optimization");
     await page.getByRole("button", { name: "Save profile" }).click();
@@ -133,6 +137,42 @@ test.describe("accounts", () => {
     await login(page, user, "a-Long-pass-123");
     await expect(page.getByRole("heading", { level: 1 })).toContainText(/Good (morning|afternoon|evening)/);
     expect(problems).toEqual([]);
+  });
+
+  test("reset a forgotten password with an emailed code", async ({ page }) => {
+    const problems = watchConsole(page);
+    const user = `e2r${Date.now()}`;
+    const email = `${user}@example.com`;
+    await page.goto("/accounts/signup/");
+    await page.getByLabel("Username").fill(user);
+    await page.getByLabel("Email").fill(email);
+    await page.getByLabel("Password", { exact: true }).fill("a-Long-pass-123");
+    await page.getByLabel("Confirm password").fill("a-Long-pass-123");
+    await page.getByRole("button", { name: "Continue" }).click();
+    await expect(page.getByRole("heading", { name: "Check your email" })).toBeVisible();
+    await page.getByLabel("Confirmation code").fill(latestCode(email));
+    await page.getByRole("button", { name: "Verify and create account" }).click();
+    await expect(page).toHaveURL(/\/accounts\/profile\/$/);
+    await page.getByRole("button", { name: /Account menu/ }).click();
+    await page.getByRole("menuitem", { name: "Log out" }).click();
+    await expect(page.getByRole("link", { name: "Log in" })).toBeVisible();
+
+    await page.goto("/accounts/password/reset/");
+    await page.getByLabel("Email").fill(email);
+    await page.getByRole("button", { name: "Send code" }).click();
+    await expect(page.getByRole("heading", { name: "Choose a new password" })).toBeVisible();
+    await expect(page.getByText(/request a new code in \d+s/)).toBeVisible();
+    await page.getByLabel("Code from the email").fill("000000" === latestCode(email) ? "111111" : "000000");
+    await page.getByLabel("New password", { exact: true }).fill("Another-pass-456");
+    await page.getByLabel("Confirm new password").fill("Another-pass-456");
+    await page.getByRole("button", { name: "Set new password" }).click();
+    await expect(page.getByText("That code is incorrect. 4 attempts left.")).toBeVisible();
+    await page.getByLabel("Code from the email").fill(latestCode(email));
+    await page.getByRole("button", { name: "Set new password" }).click();
+    await expect(page.getByRole("heading", { name: "Password updated" })).toBeVisible();
+
+    await login(page, user, "Another-pass-456");
+    expect(problems.filter((p) => !/status of 400/.test(p))).toEqual([]); // the wrong code above is a deliberate 400
   });
 
   test("login-only pages redirect anonymous visitors", async ({ page }) => {
@@ -197,11 +237,13 @@ test.describe("signed-in features", () => {
     expect(problems).toEqual([]);
   });
 
-  test("dashboard, profile tokens and settings render", async ({ page }) => {
+  test("dashboard, profile and settings render without tokens", async ({ page }) => {
     const problems = watchConsole(page);
     await expect(page.getByText("Your next 120 days")).toBeVisible();
+    await expect(page.getByText("Calendar feed")).toHaveCount(0);
     await page.goto("/accounts/profile/");
-    await expect(page.getByLabel("Private calendar feed URL")).toHaveValue(/\/accounts\/calendar\/.+\.ics$/);
+    await expect(page.getByRole("heading", { level: 1, name: "Profile" })).toBeVisible();
+    await expect(page.getByText(/API token|Calendar feed/)).toHaveCount(0);
     await page.goto("/accounts/settings/");
     await expect(page.getByRole("link", { name: "Export my data" })).toHaveAttribute("href", "/accounts/settings/export/");
     expect(problems).toEqual([]);

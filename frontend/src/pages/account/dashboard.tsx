@@ -1,14 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowRight, Bell, CalendarDays, Check, Clock, KanbanSquare, List, Plus, Search, Sparkles, Star, Trash2 } from "lucide-react";
+import { ArrowRight, Bell, Check, Clock, KanbanSquare, List, Plus, Search, Sparkles, Star, Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 
-import { CopyButton } from "@/components/common/copy-button";
 import { ErrorState, PageContainer, PageHeader } from "@/components/common/page";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip } from "@/components/ui/tooltip";
@@ -34,7 +32,6 @@ interface Dashboard {
   saved_searches: SavedSearch[];
   recommendations: Recommendation[];
   onboarding: { label: string; done: boolean; url: string }[];
-  calendar_url: string;
 }
 
 function greeting() {
@@ -335,19 +332,6 @@ export function Component() {
                 to get personalised venue suggestions.
               </p>
             )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>
-              <CalendarDays className="size-4 text-muted-foreground" aria-hidden="true" /> Calendar feed
-            </CardTitle>
-            <CardDescription>Private iCal feed of your starred venues and active submissions.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <Input readOnly value={data.calendar_url} onFocus={(e) => e.currentTarget.select()} className="font-mono text-xs" aria-label="Calendar feed URL" />
-            <CopyButton text={data.calendar_url} label="Copy link" className="w-full" successMessage="Calendar link copied" />
           </CardContent>
         </Card>
       </div>

@@ -17,5 +17,6 @@ node_modules/
 htmlcov/
 .ruff_cache/
 e2e.sqlite3
+e2e-mail/
 test-results/
 playwright-report/

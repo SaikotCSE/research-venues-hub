@@ -1,0 +1,12 @@
+{% autoescape off %}Hi{% if name %} {{ name }}{% endif %},
+
+{% if purpose == "signup" %}Enter this code to confirm your email address and finish creating your VenuePulse account:{% else %}Enter this code to choose a new password for your VenuePulse account:{% endif %}
+
+    {{ code }}
+
+The code expires in {{ minutes }} minutes and only works in the browser where you asked for it. Don't share it with anyone: VenuePulse will never ask you for it.
+
+{% if purpose == "signup" %}If you didn't try to sign up, ignore this email and no account will be created.{% else %}If you didn't ask to reset your password, ignore this email and your password won't change.{% endif %}
+
+— The VenuePulse team
+{% endautoescape %}

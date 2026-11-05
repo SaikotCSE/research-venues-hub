@@ -8,13 +8,11 @@ from . import views
 app_name = "accounts"
 
 urlpatterns = [
-    # authentication pages (React); the forms post to /api/app/auth/*
+    # authentication pages (React); the forms post to /api/app/auth/* (sign-up and reset use emailed codes)
     path("login/", pages.guest_page("login"), name="login"),
     path("logout/", auth_views.LogoutView.as_view(), name="logout"),
     path("signup/", pages.guest_page("signup"), name="signup"),
     path("password/reset/", pages.guest_page("password_reset"), name="password_reset"),
-    path("password/reset/sent/", pages.guest_page("password_reset_done"), name="password_reset_done"),
-    path("password/reset/<uidb64>/<token>/", pages.password_reset_confirm, name="password_reset_confirm"),
     path("password/reset/complete/", pages.guest_page("password_reset_complete"), name="password_reset_complete"),
     path("password/change/", pages.private_page("password_change"), name="password_change"),
     path("verify/<str:token>/", views.verify_email, name="verify_email"),

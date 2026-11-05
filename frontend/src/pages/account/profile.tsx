@@ -1,20 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CalendarDays, Eye, EyeOff, KeyRound, RefreshCw, UserRound } from "lucide-react";
+import { UserRound } from "lucide-react";
 import * as React from "react";
 import { toast } from "sonner";
 
-import { CopyButton } from "@/components/common/copy-button";
 import { ErrorState, PageContainer, PageHeader } from "@/components/common/page";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, FormError } from "@/components/ui/field";
@@ -23,7 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { useDocumentTitle } from "@/hooks/use-document-title";
-import { ApiError, api, errorMessage } from "@/lib/api";
+import { ApiError, api } from "@/lib/api";
 import { keys } from "@/lib/query";
 import { browserTimeZone } from "@/lib/time";
 import type { Session } from "@/lib/types";
@@ -39,53 +28,15 @@ interface Profile {
   email: string;
   email_verified: boolean;
   username: string;
-  calendar_url: string;
-  calendar_subscribed: boolean;
-  api_token: string;
 }
 
 type Editable = Pick<Profile, "display_name" | "affiliation" | "research_interests" | "timezone" | "email_reminders" | "reminder_days" | "weekly_digest">;
 
-function RegenerateButton({ which, onDone }: { which: "calendar" | "api"; onDone: (p: Profile) => void }) {
-  const regen = useMutation({
-    mutationFn: () => api.post<Profile & { message: string }>(`/me/tokens/${which}/`),
-    onSuccess: (p) => {
-      toast.success(p.message);
-      onDone(p);
-    },
-    onError: (e) => toast.error(errorMessage(e)),
-  });
-  return (
-    <AlertDialog>
-      <AlertDialogTrigger asChild>
-        <Button variant="secondary" size="sm">
-          <RefreshCw aria-hidden="true" /> Regenerate
-        </Button>
-      </AlertDialogTrigger>
-      <AlertDialogContent>
-        <AlertDialogTitle>Regenerate {which === "api" ? "API token" : "calendar link"}?</AlertDialogTitle>
-        <AlertDialogDescription>
-          The current{" "}
-          {which === "api"
-            ? "token stops working immediately — update any scripts that use it"
-            : "link stops working — re-subscribe in your calendar app with the new one"}
-          .
-        </AlertDialogDescription>
-        <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction onClick={() => regen.mutate()}>Regenerate</AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
-  );
-}
-
 export function Component() {
-  useDocumentTitle("Profile & API");
+  useDocumentTitle("Profile");
   const qc = useQueryClient();
   const { data, error, isLoading, refetch } = useQuery({ queryKey: keys.profile, queryFn: () => api.get<Profile>("/me/profile/") });
   const [form, setForm] = React.useState<Editable | null>(null);
-  const [showToken, setShowToken] = React.useState(false);
   React.useEffect(() => {
     if (data)
       setForm({
@@ -97,9 +48,6 @@ export function Component() {
         reminder_days: data.reminder_days,
         weekly_digest: data.weekly_digest,
       });
-  }, [data]);
-  React.useEffect(() => {
-    if (data && window.location.hash) document.querySelector(window.location.hash)?.scrollIntoView({ block: "start" });
   }, [data]);
   const zones = React.useMemo(() => {
     try {
@@ -136,11 +84,10 @@ export function Component() {
       </PageContainer>
     );
 
-  const setProfile = (p: Profile) => qc.setQueryData(keys.profile, p);
   return (
     <PageContainer size="default">
-      <PageHeader icon={UserRound} title="Profile & API" description={`Signed in as ${data.username}${data.email ? ` · ${data.email}` : ""}`} />
-      <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
+      <PageHeader icon={UserRound} title="Profile" description={`Signed in as ${data.username}${data.email ? ` · ${data.email}` : ""}`} />
+      <div className="max-w-3xl">
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -149,7 +96,7 @@ export function Component() {
         >
           <Card>
             <CardHeader>
-              <CardTitle>Profile</CardTitle>
+              <CardTitle>Research &amp; reminders</CardTitle>
               <CardDescription>Your interests power recommendations; the timezone is used for every date you see and every reminder we send.</CardDescription>
             </CardHeader>
             <CardContent className="grid gap-4">
@@ -215,69 +162,6 @@ export function Component() {
             </CardFooter>
           </Card>
         </form>
-
-        <div className="space-y-6">
-          <Card id="calendar" className="scroll-mt-20">
-            <CardHeader>
-              <CardTitle>
-                <CalendarDays className="size-4 text-muted-foreground" aria-hidden="true" /> Calendar feed
-              </CardTitle>
-              <CardDescription>
-                Subscribe in Google Calendar, Apple Calendar or Outlook to see every milestone of your targets and active submissions.
-                {data.calendar_subscribed ? " ✓ Subscribed" : ""}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <Input
-                readOnly
-                value={data.calendar_url}
-                onFocus={(e) => e.currentTarget.select()}
-                className="font-mono text-xs"
-                aria-label="Private calendar feed URL"
-              />
-              <div className="flex flex-wrap gap-2">
-                <CopyButton text={data.calendar_url} label="Copy link" successMessage="Calendar link copied" />
-                <Button variant="secondary" size="sm" asChild>
-                  <a href={data.calendar_url.replace(/^https?:/, "webcal:")}>Open in calendar app</a>
-                </Button>
-                <RegenerateButton which="calendar" onDone={setProfile} />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card id="api" className="scroll-mt-20">
-            <CardHeader>
-              <CardTitle>
-                <KeyRound className="size-4 text-muted-foreground" aria-hidden="true" /> API token
-              </CardTitle>
-              <CardDescription>
-                Use as <code className="font-mono text-xs">Authorization: Bearer &lt;token&gt;</code> for the{" "}
-                <a href="/api/docs/#auth" className="link">
-                  personal API
-                </a>
-                . Keep it secret.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="relative">
-                <Input readOnly value={showToken ? data.api_token : "•".repeat(32)} className="pr-10 font-mono text-xs" aria-label="API token" />
-                <button
-                  type="button"
-                  onClick={() => setShowToken((s) => !s)}
-                  className="absolute right-1.5 top-1/2 grid size-7 -translate-y-1/2 place-items-center rounded-md text-muted-foreground hover:text-foreground"
-                  aria-label={showToken ? "Hide token" : "Show token"}
-                  aria-pressed={showToken}
-                >
-                  {showToken ? <EyeOff className="size-4" aria-hidden="true" /> : <Eye className="size-4" aria-hidden="true" />}
-                </button>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <CopyButton text={data.api_token} label="Copy token" successMessage="Token copied" />
-                <RegenerateButton which="api" onDone={setProfile} />
-              </div>
-            </CardContent>
-          </Card>
-        </div>
       </div>
     </PageContainer>
   );

@@ -75,10 +75,7 @@ export function Component() {
           confirm your address. Turn reminders and the digest off at any time on your profile.
         </p>
         <h2>What others can see</h2>
-        <p>
-          Everything is private by default. Venue lists you make public, and the display name on experience reviews you post, are visible to others. Your
-          calendar-feed and API tokens are secrets — regenerate them on your <Link to="/accounts/profile/">profile</Link> if they leak.
-        </p>
+        <p>Everything is private by default. Venue lists you make public, and the display name on experience reviews you post, are visible to others.</p>
         <h2>You are in control</h2>
         <p>
           From <Link to="/accounts/settings/">account settings</Link> you can download a complete JSON export of your data, change your email or password, and

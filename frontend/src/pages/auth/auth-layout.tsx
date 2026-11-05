@@ -7,7 +7,7 @@ import { useDocumentTitle } from "@/hooks/use-document-title";
 const POINTS = [
   { icon: Globe2, text: "Deadlines in your timezone and AoE, ticking live" },
   { icon: BellRing, text: "Email reminders before abstract and paper deadlines" },
-  { icon: CalendarClock, text: "A private calendar feed of everything you track" },
+  { icon: CalendarClock, text: "Add any deadline to your calendar in one click" },
   { icon: KanbanSquare, text: "A submission board with venue-specific checklists" },
 ];
 

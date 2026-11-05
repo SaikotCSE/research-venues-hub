@@ -29,10 +29,6 @@ from .session import session_payload
 logger = logging.getLogger("venuepulse")
 
 
-def _calendar_url(request, profile):
-    return request.build_absolute_uri(reverse("accounts:calendar_feed", args=[profile.calendar_token]))
-
-
 # ------------------------------------------------------------------ dashboard
 @endpoint("GET", login=True)
 def dashboard(request):
@@ -56,7 +52,6 @@ def dashboard(request):
         {"label": "Add research interests", "done": bool(profile.interest_keywords), "url": reverse("accounts:profile")},
         {"label": "Star a target venue", "done": target_count > 0, "url": reverse("venues:list")},
         {"label": "Track a submission", "done": has_submissions, "url": reverse("tracker:create")},
-        {"label": "Subscribe to your calendar feed", "done": profile.calendar_subscribed, "url": reverse("accounts:profile") + "#calendar"},
     ]
     recs = recommend(profile.research_interests, limit=4) if profile.interest_keywords else []
     stars = starred_ids(request)
@@ -72,11 +67,10 @@ def dashboard(request):
         "saved_searches": [_search_payload(s) for s in user.saved_searches.all()],
         "recommendations": [{"venue": venue_card(r["venue"], stars), "percent": r["percent"], "reasons": r["reasons"]} for r in recs],
         "onboarding": onboarding,
-        "calendar_url": _calendar_url(request, profile),
     }
 
 
-# ------------------------------------------------------------------ profile & tokens
+# ------------------------------------------------------------------ profile
 def profile_payload(request):
     p = request.user.profile
     return {
@@ -91,9 +85,6 @@ def profile_payload(request):
         "email_verified": p.email_verified,
         "username": request.user.get_username(),
         "date_joined": iso(request.user.date_joined),
-        "calendar_url": _calendar_url(request, p),
-        "calendar_subscribed": p.calendar_subscribed,
-        "api_token": p.api_token,
     }
 
 
@@ -108,14 +99,6 @@ def profile(request):
             form_error(form)
         form.save()
     return profile_payload(request)
-
-
-@endpoint("POST", login=True)
-def regenerate_token(request, which):
-    if which not in ("calendar", "api"):
-        raise Http404("Unknown token type.")
-    request.user.profile.regenerate_tokens(calendar=which == "calendar", api=which == "api")
-    return {**profile_payload(request), "message": f"New {which} token generated; the old one no longer works."}
 
 
 @endpoint("POST", login=True)

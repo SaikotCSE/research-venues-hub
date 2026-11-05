@@ -1,7 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
-import { Braces, ChevronRight, KeyRound, Loader2, Play } from "lucide-react";
+import { Braces, ChevronRight, Loader2, Play } from "lucide-react";
 import * as React from "react";
-import { Link } from "react-router-dom";
 
 import { CodeBlock } from "@/components/common/code-block";
 import { PageContainer, PageHeader } from "@/components/common/page";
@@ -15,7 +14,6 @@ import { useDocumentTitle } from "@/hooks/use-document-title";
 import { api } from "@/lib/api";
 import { keys } from "@/lib/query";
 import { cn } from "@/lib/utils";
-import { useSession } from "@/providers/session";
 
 interface ApiMeta {
   host: string;
@@ -31,7 +29,6 @@ const TOC = [
   ["conventions", "Conventions"],
   ["endpoints", "Endpoints"],
   ["filters", "Filter parameters"],
-  ["auth", "Authentication"],
 ];
 
 function TryIt({ examples }: { examples: string[] }) {
@@ -106,11 +103,10 @@ function TryIt({ examples }: { examples: string[] }) {
 
 export function Component() {
   useDocumentTitle("API documentation");
-  const session = useSession();
   const { data } = useQuery({ queryKey: keys.apiMeta, queryFn: () => api.get<ApiMeta>("/api-meta/"), staleTime: Infinity });
   const host = data?.host ?? window.location.origin;
   const snippets = {
-    curl: `# A* conferences with a paper deadline in the next 60 days\ncurl "${host}/api/venues/?core=A*&within=60&sort=deadline"\n\n# Star a venue with your token\ncurl -X POST -H "Authorization: Bearer $VENUEPULSE_TOKEN" \\\n     -H "Content-Type: application/json" \\\n     -d '{"slug": "neurips"}' ${host}/api/v1/me/targets/`,
+    curl: `# A* conferences with a paper deadline in the next 60 days\ncurl "${host}/api/venues/?core=A*&within=60&sort=deadline"\n\n# One venue with every deadline cycle\ncurl "${host}/api/venues/neurips/"`,
     python: `import requests\n\nurl = "${host}/api/venues/"\nparams = {"type": "Journal", "quartile": "Q1", "min_if": 10, "page_size": 50}\nwhile url:\n    page = requests.get(url, params=params, timeout=10).json()\n    for venue in page["results"]:\n        print(venue["acronym"], venue["impact_factor"], venue["url"])\n    url, params = page["next"], None  # follow pagination links`,
     js: `// Public endpoints send CORS headers, so this works from any website.\nconst res = await fetch("${host}/api/venues/?status=open&sort=deadline&page_size=5");\nconst { results } = await res.json();\nresults.forEach((v) => console.log(v.acronym, v.next_deadline?.at));`,
   };
@@ -140,8 +136,7 @@ export function Component() {
             title="VenuePulse API"
             description={
               <>
-                A read-only JSON API for the venue catalogue plus token-authenticated endpoints for your own targets and submissions. Machine-readable
-                description:{" "}
+                A read-only JSON API for the venue catalogue. No sign-up or key needed. Machine-readable description:{" "}
                 <a href="/api/openapi.json" className="link font-mono text-[13px]">
                   /api/openapi.json
                 </a>{" "}
@@ -149,16 +144,9 @@ export function Component() {
               </>
             }
             actions={
-              <>
-                <Button variant="secondary" asChild>
-                  <a href="/api/openapi.json">OpenAPI schema</a>
-                </Button>
-                <Button asChild>
-                  <Link to={session.authenticated ? "/accounts/profile/#api" : "/accounts/signup/?next=/accounts/profile/"}>
-                    <KeyRound aria-hidden="true" /> {session.authenticated ? "Your API token" : "Get an API token"}
-                  </Link>
-                </Button>
-              </>
+              <Button variant="secondary" asChild>
+                <a href="/api/openapi.json">OpenAPI schema</a>
+              </Button>
             }
           />
 
@@ -195,13 +183,13 @@ export function Component() {
             <dl className="grid gap-3 sm:grid-cols-2">
               {[
                 ["Pagination", "Lists return count, page, num_pages, page_size (1–200, default 25) and absolute next/previous links."],
-                ["Errors", 'Always JSON: {"error": "…"} with status 400, 401, 404, 405 or 429.'],
+                ["Errors", 'Always JSON: {"error": "…"} with status 400, 404, 405 or 429.'],
                 ["Caching", "Public endpoints send a weak ETag and Cache-Control: max-age=300; repeat requests with If-None-Match get 304 Not Modified."],
                 [
                   "Rate limits",
-                  `${data?.limits.api_public ?? "300/m"} public and ${data?.limits.api_token ?? "120/m"} token requests per client, reported in X-RateLimit-* headers; 429 responses include Retry-After.`,
+                  `${data?.limits.api_public ?? "300/m"} requests per client, reported in X-RateLimit-* headers; 429 responses include Retry-After.`,
                 ],
-                ["CORS", "Public read-only endpoints allow any origin. Token endpoints do not — call them from a server."],
+                ["CORS", "Every endpoint allows any origin, so you can call it straight from a web page."],
                 ["Times", "ISO 8601 in UTC. Each cycle states whether its official cut-off is AoE (UTC−12) or UTC, and whether the dates are projected."],
               ].map(([t, d]) => (
                 <div key={t} className="rounded-xl border bg-card p-4 shadow-card">
@@ -297,21 +285,6 @@ export function Component() {
                 </table>
               </CardContent>
             </Card>
-          </section>
-
-          <section id="auth" aria-labelledby="auth-h" className="scroll-mt-20">
-            <h2 id="auth-h" className="mb-3 text-xl font-semibold tracking-tight">
-              Authentication
-            </h2>
-            <p className="max-w-3xl text-[15px] leading-7 text-muted-foreground">
-              Personal endpoints under <code className="font-mono text-foreground">/api/v1/me/</code> require{" "}
-              <code className="font-mono text-foreground">Authorization: Bearer &lt;token&gt;</code>. Find or regenerate your token on your{" "}
-              <Link to="/accounts/profile/#api" className="link">
-                profile
-              </Link>
-              ; regenerating revokes the old one immediately. Requests without a valid token get 401 with a{" "}
-              <code className="font-mono text-foreground">WWW-Authenticate</code> header.
-            </p>
           </section>
         </div>
       </div>

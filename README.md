@@ -48,23 +48,25 @@ serves a JSON API, server-rendered SEO metadata, the admin, emails, feeds and ex
   still make, with slack), **insights** charts and a public **deadline radar**.
 - Command palette (<kbd>Ctrl</kbd>/<kbd>⌘</kbd>+<kbd>K</kbd> or <kbd>/</kbd>) with venue search, pages, actions and
   recently viewed venues; light/dark/system theme; fully responsive layout.
-- **Embeddable countdown widget** (`/embed/venue/<slug>/`, light or dark) for lab and course websites.
+- **Embeddable countdown widget** (`/embed/venue/<slug>/`, light or dark) for lab and course websites (not linked
+  from the app; share the URL directly).
 
 **Track** (free account)
 - Dashboard with onboarding checklist, the next 120 days of deadlines, active submissions, notifications, saved
-  searches, recommendations for your interests and your private calendar feed.
+  searches and recommendations for your interests.
 - **Submission tracker** kanban (planning → writing → submitted → review → rebuttal → accepted/rejected) with
   keyboard-accessible drag & drop, a "Move to" menu and auto-generated, venue-specific checklists.
 - Starred venues with private notes (anonymous stars merge into your account when you sign up), shareable **venue
   lists** with their own calendar feeds, **saved searches** with alerts.
-- Reminders at your chosen offsets (default 14/7/1 days), a **weekly digest email**, a private iCal subscription and
+- Reminders at your chosen offsets (default 14/7/1 days), a **weekly digest email** and
   **notifications when a tracked deadline moves**. Emails go only to confirmed addresses.
 - Account settings: email change, password change/reset, **JSON export of all your data**, account deletion.
 
 **Integrate**
-- Public JSON API with pagination links, ETags/`304`, CORS and rate-limit headers; bearer-token API for your own
-  targets and submissions; [OpenAPI 3.1 schema](venues/openapi.py) and interactive docs with a live console at
-  `/api/docs/`.
+- Public read-only JSON API with pagination links, ETags/`304`, CORS and rate-limit headers;
+  [OpenAPI 3.1 schema](venues/openapi.py) and interactive docs with a live console at `/api/docs/`.
+- A bearer-token API for one account's targets and submissions (`/api/v1/me/`). Tokens are never shown in the app;
+  an admin issues one with `python manage.py issue_api_token <username>`, and only its SHA-256 hash is stored.
 - CSV/JSON exports, filter-driven `.ics` and Atom feeds, `import_venues` to load or update data from CSV/JSON.
 
 **Operate**
@@ -157,7 +159,8 @@ All settings come from environment variables (or `.env`); see [`.env.example`](.
 | `SITE_URL` | request host | Public base URL used in emails, feeds and canonical links |
 | `DATABASE_URL` | SQLite `db.sqlite3` | e.g. `postgres://user:pass@host:5432/venuepulse` |
 | `REDIS_URL` | — | Enables the Redis cache (shared rate limits & caches across workers) |
-| `EMAIL_HOST` … | console backend | SMTP settings for reminders, digests and password resets |
+| `BREVO_API_KEY` | — | Send email through Brevo's HTTPS API (for hosts that block SMTP, e.g. Render's free plan) |
+| `EMAIL_HOST` … | console backend | SMTP instead (e.g. Gmail + app password). Email is required: sign-up and password reset send one-time codes |
 | `DJANGO_ADMIN_URL` | `admin/` | Move the admin in production |
 | `CSP_REPORT_ONLY` | `0` | Report-only mode while rolling out CSP changes |
 | `VITE_DEV_SERVER_URL` | — | Development only: load the app from `npm run dev` for hot reloading |

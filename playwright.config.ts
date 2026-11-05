@@ -7,6 +7,7 @@ const env = {
   DJANGO_SETTINGS_MODULE: "config.settings.local",
   DATABASE_URL: "sqlite:///e2e.sqlite3",
   RATELIMIT_ENABLED: "0",
+  EMAIL_FILE_PATH: "e2e-mail", // sign-up codes are read back from here (see latestCode in e2e/helpers.ts)
   VITE_DEV_SERVER_URL: "",
 } as Record<string, string>;
 
@@ -20,7 +21,7 @@ export default defineConfig({
   reporter: process.env.CI ? [["list"], ["html", { open: "never" }]] : "list",
   use: { baseURL: "http://127.0.0.1:8090", trace: "retain-on-failure", ...devices["Desktop Chrome"] },
   webServer: {
-    command: `rm -f e2e.sqlite3 && ${python} manage.py migrate -v0 && ${python} manage.py seed_venues -v0 && ${python} manage.py seed_demo --password demo-pass-123 && ${python} manage.py runserver 127.0.0.1:8090 --noreload`,
+    command: `rm -rf e2e.sqlite3 e2e-mail && ${python} manage.py migrate -v0 && ${python} manage.py seed_venues -v0 && ${python} manage.py seed_demo --password demo-pass-123 && ${python} manage.py runserver 127.0.0.1:8090 --noreload`,
     url: "http://127.0.0.1:8090/healthz",
     env,
     timeout: 120_000,

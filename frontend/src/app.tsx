@@ -52,59 +52,46 @@ function Guarded() {
 
 const page = (load: () => Promise<{ Component: React.ComponentType }>) => ({ lazy: load });
 
-export const router = createBrowserRouter(
-  [
-    {
-      element: <Root />,
-      HydrateFallback: BootFallback,
-      children: [
-        { index: true, ...page(() => import("@/pages/explore")) },
-        { path: "venue/:slug", ...page(() => import("@/pages/venue-detail")) },
-        { path: "compare", ...page(() => import("@/pages/compare")) },
-        { path: "targets", ...page(() => import("@/pages/targets")) },
-        { path: "recommend", ...page(() => import("@/pages/recommend")) },
-        { path: "plan", ...page(() => import("@/pages/plan")) },
-        { path: "insights", ...page(() => import("@/pages/insights")) },
-        { path: "community/changes", ...page(() => import("@/pages/radar")) },
-        { path: "about", ...page(() => import("@/pages/about")) },
-        { path: "privacy", ...page(() => import("@/pages/privacy")) },
-        { path: "api/docs", ...page(() => import("@/pages/api-docs")) },
-        { path: "accounts/login", ...page(() => import("@/pages/auth/login")) },
-        { path: "accounts/signup", ...page(() => import("@/pages/auth/signup")) },
-        { path: "accounts/password/reset", ...page(() => import("@/pages/auth/password-reset")) },
-        { path: "accounts/password/reset/sent", ...page(() => import("@/pages/auth/password-reset-done")) },
-        { path: "accounts/password/reset/complete", ...page(() => import("@/pages/auth/password-reset-complete")) },
-        { path: "accounts/password/reset/:uid/:token", ...page(() => import("@/pages/auth/password-reset-confirm")) },
-        { path: "accounts/lists/:slug", ...page(() => import("@/pages/account/list-detail")) },
-        {
-          element: <Guarded />,
-          children: [
-            { path: "accounts", ...page(() => import("@/pages/account/dashboard")) },
-            { path: "accounts/profile", ...page(() => import("@/pages/account/profile")) },
-            { path: "accounts/settings", ...page(() => import("@/pages/account/settings")) },
-            { path: "accounts/password/change", ...page(() => import("@/pages/auth/password-change")) },
-            { path: "accounts/notifications", ...page(() => import("@/pages/account/notifications")) },
-            { path: "accounts/lists", ...page(() => import("@/pages/account/lists")) },
-            { path: "tracker", ...page(() => import("@/pages/tracker/board")) },
-            { path: "tracker/new", ...page(() => import("@/pages/tracker/new")) },
-            { path: "tracker/s/:id", ...page(() => import("@/pages/tracker/detail")) },
-            { path: "tracker/papers", ...page(() => import("@/pages/tracker/papers")) },
-          ],
-        },
-        { path: "*", element: <NotFoundPage /> },
-      ],
-    },
-  ],
+export const router = createBrowserRouter([
   {
-    future: {
-      v7_relativeSplatPath: true,
-      v7_fetcherPersist: true,
-      v7_normalizeFormMethod: true,
-      v7_partialHydration: true,
-      v7_skipActionErrorRevalidation: true,
-    },
+    element: <Root />,
+    HydrateFallback: BootFallback,
+    children: [
+      { index: true, ...page(() => import("@/pages/explore")) },
+      { path: "venue/:slug", ...page(() => import("@/pages/venue-detail")) },
+      { path: "compare", ...page(() => import("@/pages/compare")) },
+      { path: "targets", ...page(() => import("@/pages/targets")) },
+      { path: "recommend", ...page(() => import("@/pages/recommend")) },
+      { path: "plan", ...page(() => import("@/pages/plan")) },
+      { path: "insights", ...page(() => import("@/pages/insights")) },
+      { path: "community/changes", ...page(() => import("@/pages/radar")) },
+      { path: "about", ...page(() => import("@/pages/about")) },
+      { path: "privacy", ...page(() => import("@/pages/privacy")) },
+      { path: "api/docs", ...page(() => import("@/pages/api-docs")) },
+      { path: "accounts/login", ...page(() => import("@/pages/auth/login")) },
+      { path: "accounts/signup", ...page(() => import("@/pages/auth/signup")) },
+      { path: "accounts/password/reset", ...page(() => import("@/pages/auth/password-reset")) },
+      { path: "accounts/password/reset/complete", ...page(() => import("@/pages/auth/password-reset-complete")) },
+      { path: "accounts/lists/:slug", ...page(() => import("@/pages/account/list-detail")) },
+      {
+        element: <Guarded />,
+        children: [
+          { path: "accounts", ...page(() => import("@/pages/account/dashboard")) },
+          { path: "accounts/profile", ...page(() => import("@/pages/account/profile")) },
+          { path: "accounts/settings", ...page(() => import("@/pages/account/settings")) },
+          { path: "accounts/password/change", ...page(() => import("@/pages/auth/password-change")) },
+          { path: "accounts/notifications", ...page(() => import("@/pages/account/notifications")) },
+          { path: "accounts/lists", ...page(() => import("@/pages/account/lists")) },
+          { path: "tracker", ...page(() => import("@/pages/tracker/board")) },
+          { path: "tracker/new", ...page(() => import("@/pages/tracker/new")) },
+          { path: "tracker/s/:id", ...page(() => import("@/pages/tracker/detail")) },
+          { path: "tracker/papers", ...page(() => import("@/pages/tracker/papers")) },
+        ],
+      },
+      { path: "*", element: <NotFoundPage /> },
+    ],
   },
-);
+]);
 
 /** Resolves once the first route (and its lazily loaded page chunk) is ready to render. */
 export function routerReady() {
@@ -132,7 +119,7 @@ export function App() {
           <CompareProvider>
             <PaletteProvider>
               <TooltipProvider delayDuration={300}>
-                <RouterProvider router={router} future={{ v7_startTransition: true }} />
+                <RouterProvider router={router} />
                 <ThemedToaster />
               </TooltipProvider>
             </PaletteProvider>

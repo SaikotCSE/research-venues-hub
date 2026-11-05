@@ -119,7 +119,8 @@ class InsightsAndFeedTests(TestCase):
         self.assertContains(self.client.get(reverse("venues:api_docs")), "<title>API documentation · VenuePulse</title>")
         meta = self.client.get("/api/app/api-meta/").json()
         paths = [e["path"] for g in meta["groups"] for e in g["endpoints"]]
-        self.assertIn("/api/v1/me/targets/", paths)
+        self.assertIn("/api/venues/", paths)
+        self.assertFalse([p for p in paths if p.startswith("/api/v1/me")], "token endpoints are not advertised")
         self.assertIn("min_if", [f["name"] for f in meta["filters"]])
 
     def test_facets_and_home_payloads(self):
@@ -137,13 +138,14 @@ class TokenApiTests(TestCase):
     def setUpTestData(cls):
         call_command("seed_venues", verbosity=0)
         cls.user = User.objects.create_user("alice", "a@example.com", "pw-12345-xyz")
-        cls.hdr = {"HTTP_AUTHORIZATION": f"Bearer {cls.user.profile.api_token}"}
+        cls.token = cls.user.profile.issue_api_token()
+        cls.hdr = {"HTTP_AUTHORIZATION": f"Bearer {cls.token}"}
 
     def test_requires_token(self):
         for name in ("venues:api_me", "venues:api_me_targets", "venues:api_me_submissions"):
             self.assertEqual(self.client.get(reverse(name)).status_code, 401, name)
         self.assertEqual(self.client.get(reverse("venues:api_me"), HTTP_AUTHORIZATION="Bearer nope").status_code, 401)
-        self.assertEqual(self.client.get(reverse("venues:api_me"), HTTP_AUTHORIZATION=f"Token {self.user.profile.api_token}").status_code, 401)
+        self.assertEqual(self.client.get(reverse("venues:api_me"), HTTP_AUTHORIZATION=f"Token {self.token}").status_code, 401)
 
     def test_me(self):
         d = self.client.get(reverse("venues:api_me"), **self.hdr).json()
@@ -169,7 +171,7 @@ class TokenApiTests(TestCase):
     def test_token_user_isolation(self):
         bob = User.objects.create_user("bob", "b@example.com", "pw-12345-xyz")
         self.client.post(reverse("venues:api_me_targets"), json.dumps({"slug": "cvpr"}), content_type="application/json", **self.hdr)
-        d = self.client.get(reverse("venues:api_me_targets"), HTTP_AUTHORIZATION=f"Bearer {bob.profile.api_token}").json()
+        d = self.client.get(reverse("venues:api_me_targets"), HTTP_AUTHORIZATION=f"Bearer {bob.profile.issue_api_token()}").json()
         self.assertEqual(d["count"], 0)
 
 
@@ -403,10 +405,9 @@ class Round2FeatureTests(TestCase):
         self.assertIn("max-age=300", r["Cache-Control"])
         self.assertEqual(self.client.get(reverse("venues:detail", args=["cvpr"]))["X-Frame-Options"], "DENY")
 
-    def test_detail_offers_embed_url(self):
+    def test_detail_payload_has_no_embed_or_api_links(self):
         d = self.client.get("/api/app/venues/cvpr/").json()
-        self.assertEqual(d["urls"]["embed"], "http://testserver/embed/venue/cvpr/")
-        self.assertEqual(d["urls"]["api"], "/api/venues/cvpr/")
+        self.assertEqual(set(d["urls"]), {"page", "ics"})
 
     def test_about_and_privacy_pages(self):
         self.assertContains(self.client.get(reverse("about")), "<title>About &amp; FAQ · VenuePulse</title>")
